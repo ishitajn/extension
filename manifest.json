@@ -10,8 +10,8 @@
         "notifications",
         "geolocation"
     ],
-    "host_permissions": [
-        "http://localhost:8000/*"
+    "optional_host_permissions": [
+        "*://*/*"
     ],
     "action": {
         "default_popup": "popup.html",
