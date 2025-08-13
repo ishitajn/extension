@@ -101,12 +101,18 @@ input[type="checkbox"] {
 .generate-section {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 20px;
 }
 
+.timer-debug-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto; /* Pushes this group to the right */
+}
+
 .generate-button {
-    flex-grow: 1;
     background-color: var(--highlight-color);
     color: #000;
     border: none;
@@ -115,6 +121,15 @@ input[type="checkbox"] {
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.generate-button:hover {
+    background-color: #ffde3b;
+}
+
+.generate-button:active {
+    background-color: #ffd10a;
 }
 
 .secondary-button {
@@ -130,6 +145,14 @@ input[type="checkbox"] {
 .secondary-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.secondary-button:hover:not(:disabled), .test-button:hover:not(:disabled) {
+    background-color: #3a3a3a;
+}
+
+.secondary-button:active:not(:disabled), .test-button:active:not(:disabled) {
+    background-color: #4a4a4a;
 }
 
 .timer-display {

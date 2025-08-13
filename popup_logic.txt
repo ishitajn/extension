@@ -74,8 +74,42 @@ function renderCostAnalysis(tokenCount) { const container = document.getElementB
 function renderResponseHistory(history) { const container = document.getElementById('history-container'); const section = document.getElementById('history-section'); container.innerHTML = ''; if (history.length === 0) { section.style.display = 'none'; return; } section.style.display = 'block'; history.forEach(text => { const item = document.createElement('div'); item.className = 'history-item'; item.innerHTML = `<div class="history-item-text"></div><div class="history-item-actions"><button class="copy-btn">Copy</button><button class="use-btn">Use</button></div>`; item.querySelector('.history-item-text').textContent = text; item.querySelector('.copy-btn').addEventListener('click', () => navigator.clipboard.writeText(text)); item.querySelector('.use-btn').addEventListener('click', () => { document.getElementById('message-box').textContent = text; }); container.appendChild(item); }); }
 function showSpinner() { document.getElementById('spinner').style.display = 'block'; }
 function hideSpinner() { document.getElementById('spinner').style.display = 'none'; }
-function renderDebugModal(uiOptions) { /* ... */ }
-function navigateDebugModal(direction) { /* ... */ }
+function renderDebugModal(uiOptions) {
+    const container = document.getElementById('debug-modal-content-area');
+    container.innerHTML = '';
+    const debugGroup = uiOptions.find(g => g.groupName === "Conversation Analysis Thresholds");
+    if (!debugGroup) return;
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'debug-page';
+    pageDiv.dataset.pageIndex = 0;
+    const title = document.createElement('h3');
+    title.textContent = debugGroup.groupDescription;
+    pageDiv.appendChild(title);
+    debugGroup.parameters.forEach(param => pageDiv.appendChild(createControlElement(param)));
+    container.appendChild(pageDiv);
+    debugModalState.pages = [pageDiv];
+    const promptPage = document.createElement('div');
+    promptPage.className = 'debug-page';
+    promptPage.dataset.pageIndex = 1;
+    promptPage.innerHTML = `<h3>Generated Prompts</h3><textarea id="debug-prompt-display" readonly style="width: 100%; height: 200px;"></textarea>`;
+    container.appendChild(promptPage);
+    debugModalState.pages.push(promptPage);
+    debugModalState.totalPages = 2;
+    navigateDebugModal(0);
+}
+function navigateDebugModal(direction) {
+    const { currentPage, totalPages, pages } = debugModalState;
+    let newPage = currentPage + direction;
+    if (newPage < 0 || newPage >= totalPages) return;
+    if(pages[currentPage]) pages[currentPage].classList.remove('active');
+    if(pages[newPage]) pages[newPage].classList.add('active');
+    debugModalState.currentPage = newPage;
+    document.getElementById('debug-back-button').style.display = newPage > 0 ? 'block' : 'none';
+    document.getElementById('debug-next-button').style.display = newPage === 0 ? 'block' : 'none';
+    document.getElementById('debug-regenerate-button').style.display = newPage === 0 ? 'block' : 'none';
+    document.getElementById('debug-generate-button').style.display = newPage === 1 ? 'block' : 'none';
+    document.getElementById('debug-copy-prompt-button').style.display = newPage === 1 ? 'block' : 'none';
+}
 
 // --- Event Listeners & Handlers ---
 function initEventListeners() {
@@ -83,6 +117,13 @@ function initEventListeners() {
     document.getElementById('generate-button').addEventListener('click', handleGenerateClick);
     document.getElementById('settings-button').addEventListener('click', () => { document.getElementById('main-view').style.display = 'none'; document.getElementById('settings-view').style.display = 'block'; });
     document.getElementById('back-button').addEventListener('click', () => { document.getElementById('settings-view').style.display = 'none'; document.getElementById('main-view').style.display = 'block'; });
+    document.getElementById('debug-checkbox').addEventListener('change', (e) => { const modal = document.getElementById('debug-modal'); if (e.target.checked) { if (!debugModalState.isRendered) { renderDebugModal(state.uiOptions); debugModalState.isRendered = true; } modal.style.display = 'flex'; } else { modal.style.display = 'none'; } });
+    document.getElementById('debug-close-button').addEventListener('click', () => { document.getElementById('debug-modal').style.display = 'none'; document.getElementById('debug-checkbox').checked = false; });
+    document.getElementById('debug-next-button').addEventListener('click', () => navigateDebugModal(1));
+    document.getElementById('debug-back-button').addEventListener('click', () => navigateDebugModal(-1));
+    document.getElementById('debug-regenerate-button').addEventListener('click', handleModalRegenerateClick);
+    document.getElementById('debug-generate-button').addEventListener('click', handleGenerateClick);
+    document.getElementById('debug-copy-prompt-button').addEventListener('click', () => { const text = document.getElementById('debug-prompt-display').value; navigator.clipboard.writeText(text); });
     chrome.runtime.onMessage.addListener(async (message) => { if (message.type === 'GENERATION_COMPLETE' || message.type === 'GENERATION_ERROR') { hideSpinner(); const generateBtn = document.getElementById('generate-button'); generateBtn.disabled = false; generateBtn.textContent = 'GENERATE'; const isError = message.type === 'GENERATION_ERROR'; const text = isError ? message.payload.error : message.payload.text; displayError(text); if (!isError) { await historyManager.add(text); const history = await historyManager.get(); renderResponseHistory(history); } } });
 }
 async function handleRegenerateClick() {
@@ -99,6 +140,21 @@ async function handleRegenerateClick() {
         updateStatus('Regeneration complete.');
     } catch (error) { displayError(`Regeneration failed: ${error.message}`); }
     finally { hideSpinner(); regenBtn.disabled = false; }
+}
+async function handleModalRegenerateClick() {
+    const settings = {};
+    const container = document.getElementById('debug-modal-content-area');
+    const inputs = container.querySelectorAll('select, input[type="range"], input[type="checkbox"]');
+    inputs.forEach(input => { settings[input.id] = input.type === 'checkbox' ? input.checked : input.value; });
+    try {
+        const response = await fetch(`${state.settings.nlpUrl}/api/v1/regenerate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: settings }) });
+        const data = await response.json();
+        state.prompts = data;
+        document.getElementById('debug-prompt-display').value = `SYSTEM:\n${data.system_prompt}\n\nUSER:\n${data.user_prompt}`;
+        navigateDebugModal(1);
+    } catch (error) {
+        displayError(`Modal regenerate failed: ${error.message}`);
+    }
 }
 async function handleGenerateClick() { if (!state.prompts) { displayError("No prompts available."); return; } const generateBtn = document.getElementById('generate-button'); generateBtn.disabled = true; showSpinner(); chrome.runtime.sendMessage({ type: 'GENERATE_TEXT', payload: { prompts: state.prompts, settings: state.settings } }); }
 function getTuneResponseSettings() { const settings = {}; const tuneContainer = document.getElementById('tune-response-container'); const inputs = tuneContainer.querySelectorAll('select, input[type="range"], input[type="checkbox"]'); inputs.forEach(input => { settings[input.id] = input.type === 'checkbox' ? input.checked : input.value; }); settings.endWithQuestion = document.getElementById('end-with-question').checked; return settings; }
@@ -118,7 +174,7 @@ function initSettingsPanel(settings) {
                 const value = e.target.value;
                 if (id === 'location' && value === 'auto') { handleAutoDetectLocation(); }
                 else { state.settings[key] = value; await settingsManager.save(state.settings); }
-                if (id.includes('url')) validateUrlField(input);
+                if (id.includes('url')) { if (validateUrlField(input)) { const url = new URL(value); chrome.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }); } }
             });
             if (id.includes('url')) validateUrlField(input);
         }
