@@ -1,0 +1,27 @@
+{
+    "manifest_version": 3,
+    "name": "AI Dating Scraper Assistant",
+    "version": "1.0",
+    "description": "Scrapes dating app conversations, analyzes them, and helps generate responses.",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage",
+        "notifications"
+    ],
+    "host_permissions": [
+        "http://localhost:8000/*"
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "AI Dating Assistant"
+    },
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "background": {
+        "service_worker": "background.js"
+    }
+}
