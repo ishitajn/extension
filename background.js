@@ -1,10 +1,5 @@
 // background.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { generatePrompts } from './prompts.js';
-import { runFullConversationAnalysis, determineConversationState, hasRecentGreeting } from './conversationHelpers.js';
-import spacetime from './lib/spacetime.min.js';
-import informal from './lib/spacetime-informal.min.js';
-
-spacetime.extend(informal);
 
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-BG-${category.toUpperCase()}] ${message}`, data ?? ''),
@@ -249,12 +244,13 @@ chrome.runtime.onConnect.addListener((port) => {
     DEBUG.log('PORT', 'Popup connected');
 
     const messageHandlers = {
-        "getNlpAnalysis": async(request) => {
+        "getNlpAnalysis": async (request) => {
             try {
                 DEBUG.log('NLP', 'Received getNlpAnalysis request', request.data);
-                const { scrapedData } = request.data;
-                if (!scrapedData)
-                    throw new Error("getNlpAnalysis received no scrapedData.");
+                const {
+                    scrapedData
+                } = request.data;
+                if (!scrapedData) throw new Error("getNlpAnalysis received no scrapedData.");
 
                 const uuid = await memoryManager._getMatchUUID(scrapedData.theirName, scrapedData.theirProfile);
                 let matchProfile = await memoryManager.getMatchProfile(uuid);
@@ -284,22 +280,32 @@ chrome.runtime.onConnect.addListener((port) => {
                 matchProfile.metadata.theirProfile = scrapedData.theirProfile;
                 matchProfile.metadata.matchLocation = scrapedData.matchLocation;
 
-                const { updatedMemory, lastMessageAnalysis } = runFullConversationAnalysis(matchProfile.conversationHistory, matchProfile.memory);
-                matchProfile.memory = updatedMemory;
+                // ---- NEW: Call backend for NLP analysis ----
+                const settings = await chrome.storage.local.get('nlp_url');
+                const nlpUrl = settings.nlp_url || DEFAULTS.nlp_url;
+
+                const nlpResponse = await fetch(nlpUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        profile: matchProfile.metadata,
+                        conversation: matchProfile.conversationHistory
+                    })
+                });
+
+                if (!nlpResponse.ok) {
+                    throw new Error(`NLP backend failed: ${nlpResponse.status} ${nlpResponse.statusText}`);
+                }
+
+                const analysisResult = await nlpResponse.json();
+                // ---- END NEW ----
+
+                matchProfile.analysis = analysisResult;
                 matchProfile.memory.lastCacheHash = newCacheHash;
-
-                const state = determineConversationState(scrapedData.conversationHistory);
-                const suppressGreeting = hasRecentGreeting(scrapedData.conversationHistory) && !state.startsWith('REENGAGING');
-
-                const fullAnalysis = {
-                    conversationState: state,
-                    suppressGreeting: suppressGreeting,
-                    lastMessageAnalysis: lastMessageAnalysis,
-                    memory: matchProfile.memory,
-                };
-
-                matchProfile.analysis = fullAnalysis;
                 matchProfile.metadata.lastUpdated = new Date().toISOString();
+
                 await memoryManager.saveMatchProfile(uuid, matchProfile);
                 DEBUG.log('NLP', 'Analysis complete. Sending response.', {
                     matchProfile

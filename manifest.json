@@ -23,18 +23,6 @@
   "action": {
     "default_popup": "popup.html"
   },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "lib/compromise.js",
-        "lib/spacetime.min.js",
-		"lib/spacetime-informal.min.js"
-	],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
-  ],
   "commands": {
     "_execute_action": {
       "suggested_key": {
