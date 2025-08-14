@@ -1,6 +1,7 @@
 // popup.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { scrapeBumblePage, pasteTextIntoBumbleInput, scrapeTinderPage, pasteTextIntoTinderInput } from './content-scraper.js';
-import { getToneDescription, getLengthDescription, getEmojiInstruction, getStyleDescription, determineConversationState, LINGUISTIC_STYLES } from './conversationHelpers.js';
+import { getToneDescription, getLengthDescription, getEmojiInstruction, getStyleDescription, LINGUISTIC_STYLES } from './uiHelpers.js';
+import { UI_CONFIG } from './uiConfig.js';
 import { showNlpModal, hideDebugModal } from './debug-modal.js';
 
 const DEBUG = {
@@ -380,6 +381,8 @@ function stopHeartbeat() {
 
 function setupEventListeners() {
     window.addEventListener('focus', refreshDataAndUI);
+
+    // Main buttons
     document.getElementById(SELECTORS.generateBtn)?.addEventListener('click', handleGenerateClick);
     document.getElementById(SELECTORS.copyBtn)?.addEventListener('click', handleCopyClick);
     document.getElementById(SELECTORS.cancelBtn)?.addEventListener('click', handleCancelClick);
@@ -387,48 +390,46 @@ function setupEventListeners() {
     document.getElementById(SELECTORS.backBtn)?.addEventListener('click', () => showView(SELECTORS.mainView));
     document.getElementById(SELECTORS.masterResetBtn)?.addEventListener('click', handleMasterReset);
     document.getElementById(SELECTORS.resetMatchBtn)?.addEventListener('click', handleMatchReset);
-    document.getElementById(SELECTORS.flirtySlider)?.addEventListener('input', updateSliderLabels);
-    document.getElementById(SELECTORS.lengthSlider)?.addEventListener('input', updateSliderLabels);
-    document.getElementById(SELECTORS.temperatureSlider)?.addEventListener('input', () => updateSliderValueLabel(SELECTORS.temperatureSlider, SELECTORS.temperatureValueLabel));
-    document.getElementById(SELECTORS.topPSlider)?.addEventListener('input', () => updateSliderValueLabel(SELECTORS.topPSlider, SELECTORS.topPValueLabel, 2));
+    document.getElementById(SELECTORS.dateIdeaBtn)?.addEventListener('click', handleDateIdeaClick);
+    document.getElementById(SELECTORS.refinementActions)?.addEventListener('click', handleRefinementClick);
+
+    // Tooltips
     document.querySelectorAll('.info-icon, [data-tooltip-id]').forEach(icon => {
         icon.addEventListener('mouseenter', handleTooltipShow);
         icon.addEventListener('mouseleave', handleTooltipHide);
     });
-    document.getElementById('main-view')?.addEventListener('input', handleSettingChange);
-    document.getElementById('main-view')?.addEventListener('change', handleSettingChange);
-    document.getElementById('settings-view')?.addEventListener('input', handleSettingChange);
-    document.getElementById('settings-view')?.addEventListener('change', handleSettingChange);
+
+    // Data-driven event listeners from UI_CONFIG
+    for (const key in UI_CONFIG) {
+        const config = UI_CONFIG[key];
+        const el = document.getElementById(config.id);
+        if (el) {
+            const eventType = (config.type === 'slider' || config.type === 'text') ? 'input' : 'change';
+            el.addEventListener(eventType, handleSettingChange);
+
+            if (config.type === 'slider') {
+                el.addEventListener('input', () => updateSliderValueLabel(config.id, `${config.id}-value`));
+            }
+        }
+    }
+
+    // Manual event listeners for elements not in UI_CONFIG
     document.getElementById(SELECTORS.userLocationSelect)?.addEventListener('change', handleLocationChange);
     document.getElementById(SELECTORS.clearResponseBtn)?.addEventListener('click', () => {
         const area = document.getElementById(SELECTORS.responseArea);
         area.textContent = '';
-        area.dispatchEvent(new Event('input', {
-                bubbles: true
-            }));
+        area.dispatchEvent(new Event('input', { bubbles: true }));
     });
     document.getElementById(SELECTORS.clearInstructionBtn)?.addEventListener('click', () => {
         const area = document.getElementById(SELECTORS.customInstruction);
         area.value = '';
-        area.dispatchEvent(new Event('input', {
-                bubbles: true
-            }));
+        area.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    document.getElementById(SELECTORS.dateIdeaBtn)?.addEventListener('click', handleDateIdeaClick);
-    document.getElementById(SELECTORS.refinementActions)?.addEventListener('click', handleRefinementClick);
 
-    populateSelect(SELECTORS.linguisticStyleSelect, LINGUISTIC_STYLES.map(s => ({
-                value: s,
-                text: s.charAt(0).toUpperCase() + s.slice(1)
-            })));
-    populateSelect(SELECTORS.emojiStrategySelect, Object.entries(EMOJI_STRATEGIES).map(([value, text]) => ({
-                value,
-                text
-            })));
-    populateSelect(SELECTORS.userLocationSelect, Object.entries(USER_LOCATIONS).map(([key, loc]) => ({
-                value: key,
-                text: loc.name
-            })));
+    // Populate selects
+    populateSelect(UI_CONFIG.linguisticStyleSelect.id, Object.values(UI_CONFIG.linguisticStyleSelect.options).map(s => ({ value: s, text: s.charAt(0).toUpperCase() + s.slice(1) })));
+    populateSelect(UI_CONFIG.emojiStrategySelect.id, Object.entries(UI_CONFIG.emojiStrategySelect.options).map(([value, text]) => ({ value, text })));
+    populateSelect(SELECTORS.userLocationSelect, Object.entries(USER_LOCATIONS).map(([key, loc]) => ({ value: key, text: loc.name })));
 }
 
 async function handleLocationChange() {
@@ -510,16 +511,20 @@ async function loadAndApplySettings() {
         ...globalSettings,
         ...matchSpecificSettings
     };
-    document.querySelectorAll('[data-storage-key]').forEach(el => {
-        const key = el.dataset.storageKey;
-        if (finalSettings.hasOwnProperty(key)) {
-            const value = finalSettings[key];
-            if (el.type === 'checkbox')
+
+    for (const key in UI_CONFIG) {
+        const config = UI_CONFIG[key];
+        const el = document.getElementById(config.id);
+        if (el) {
+            const value = finalSettings[key] ?? config.defaultValue;
+            if (config.type === 'checkbox') {
                 el.checked = value;
-            else
+            } else {
                 el.value = value;
+            }
         }
-    });
+    }
+
     const responseArea = document.getElementById(SELECTORS.responseArea);
     if (responseArea && finalSettings.lastResponse) {
         responseArea.textContent = finalSettings.lastResponse;

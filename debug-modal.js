@@ -1,7 +1,7 @@
 // src/debug-modal.js (Final, Refined Version)
 
 import { generatePrompts } from './prompts.js';
-import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './conversationHelpers.js';
+import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './uiHelpers.js';
 
 /** @type {import('./conversationHelpers.js').GenerationData} */
 let modalState = {};
