@@ -1,7 +1,7 @@
 // popup.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { scrapeBumblePage, pasteTextIntoBumbleInput, scrapeTinderPage, pasteTextIntoTinderInput } from './content-scraper.js';
 import { getToneDescription, getLengthDescription, getEmojiInstruction, getStyleDescription, LINGUISTIC_STYLES } from './uiHelpers.js';
-import { UI_CONFIG, DEFAULTS } from './uiConfig.js';
+import { UI_CONFIG, DEFAULTS, USER_LOCATIONS } from './uiConfig.js';
 import { showNlpModal, hideDebugModal, regeneratePrompts } from './debug-modal.js';
 
 const DEBUG = {
@@ -636,39 +636,39 @@ function getTooltipContent(tooltipId) {
 }
 
 async function updateGeoContextDisplay(geoContextData) {
-    if (!state.sessionMatchProfile || !state.sessionScrapedData)
-        return;
+    if (!state.sessionMatchProfile || !state.sessionScrapedData) return;
 
     const { myName } = state.sessionScrapedData;
     const { theirName, matchLocation } = state.sessionMatchProfile.metadata;
-    const settings = await chrome.storage.local.get('userLocationChoice');
-    const userLocationData = USER_LOCATIONS[settings.userLocationChoice || 'autodetect'];
-    const card = document.getElementById(SELECTORS.geoContextCard);
+    const settings = await chrome.storage.local.get({ userLocationChoice: 'autodetect' });
+    const userLocationData = USER_LOCATIONS[settings.userLocationChoice];
 
-    if (card)
+    const card = document.getElementById(SELECTORS.geoContextCard);
+    if (card) {
         card.hidden = !geoContextData;
-    if (!geoContextData)
-        return;
+    }
+    if (!geoContextData) return;
 
     const dataMap = {
         geoUserName: myName || 'User',
         geoMatchName: theirName || 'Match',
         userLocation: userLocationData.name.split(',')[0],
         matchLocation: matchLocation,
-        userTimeOfDay: geoContextData.userTimeOfDay,
-        matchTimeOfDay: geoContextData.matchTimeOfDay,
-        userTimezone: geoContextData.userTimeZoneName || userLocationData.timeZone,
-        matchCountry: geoContextData.matchCountry,
-        userCountry: geoContextData.userCountry || userLocationData.country,
-        timeDifference: geoContextData.timeZoneDifference !== null ? `${geoContextData.timeZoneDifference} hour(s)` : 'N/A',
-        distanceInfo: `${geoContextData.distance.miles} miles / ${geoContextData.distance.km} km`,
-        countryDifference: `${geoContextData.countryDifference}`
+        userTimeOfDay: geoContextData.userTimeOfDay || 'N/A',
+        matchTimeOfDay: geoContextData.matchTimeOfDay || 'N/A',
+        userTimezone: geoContextData.userTimeZoneName || userLocationData.timeZone || 'N/A',
+        matchCountry: geoContextData.matchCountry || 'N/A',
+        userCountry: geoContextData.userCountry || userLocationData.country || 'N/A',
+        timeDifference: (geoContextData.timeZoneDifference !== null && geoContextData.timeZoneDifference !== undefined) ? `${geoContextData.timeZoneDifference} hour(s)` : 'N/A',
+        distanceInfo: geoContextData.distance ? `${geoContextData.distance.miles} miles / ${geoContextData.distance.km} km` : 'N/A',
+        countryDifference: geoContextData.countryDifference || 'N/A'
     };
 
     Object.entries(dataMap).forEach(([id, text]) => {
         const el = document.getElementById(SELECTORS[id]);
-        if (el)
-            el.textContent = text || 'N/A';
+        if (el) {
+            el.textContent = text ?? 'N/A';
+        }
     });
 }
 

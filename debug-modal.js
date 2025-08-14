@@ -279,27 +279,38 @@ export function regeneratePrompts() {
     }
 
     // This function now rebuilds the necessary data from the main UI and the modal state
+    const getValue = (id, isFloat = false) => {
+        const el = document.getElementById(id);
+        if (!el) return isFloat ? 0.0 : '';
+        if (el.type === 'range' || el.type === 'number') {
+            const parsed = isFloat ? parseFloat(el.value) : Number(el.value);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        return el.value;
+    };
+    const getChecked = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.checked : false;
+    };
+
     const liveTaskInstructions = {
-        goal: document.getElementById('custom-instruction').value.trim(),
-        flirtyValue: Number(document.getElementById('flirty-slider').value),
-        lengthValue: Number(document.getElementById('length-slider').value),
-        linguisticStyle: document.getElementById('linguistic-style-select').value,
-        emojiStrategy: document.getElementById('emoji-strategy-select').value,
-        temperature: parseFloat(document.getElementById('temperature-slider').value),
-        top_p: parseFloat(document.getElementById('top-p-slider').value),
-        endWithQuestion: document.getElementById('question-toggle-checkbox').checked,
-        strictGoalOverride: document.getElementById('strict-goal-toggle').checked,
-        forceNewTopic: document.getElementById('new-topic-toggle').checked,
+        goal: getValue('custom-instruction').trim(),
+        flirtyValue: getValue('flirty-slider'),
+        lengthValue: getValue('length-slider'),
+        linguisticStyle: getValue('linguistic-style-select'),
+        emojiStrategy: getValue('emoji-strategy-select'),
+        temperature: getValue('temperature-slider', true),
+        top_p: getValue('top-p-slider', true),
+        endWithQuestion: getChecked('question-toggle-checkbox'),
+        strictGoalOverride: getChecked('strict-goal-toggle'),
+        forceNewTopic: getChecked('new-topic-toggle'),
     };
 
     // We merge the live UI settings with the (potentially modified) data in the modal state
     const dataForPrompts = {
         ...modalState,
-        taskInstructions: {
-            ...modalState.taskInstructions, // Start with base from modal
-            ...liveTaskInstructions // Override with live values from main UI
-        },
-        forceIncludeGeoContext: document.getElementById('geo-context-toggle').checked,
+        taskInstructions: { ...modalState.taskInstructions, ...liveTaskInstructions },
+        forceIncludeGeoContext: getChecked('geo-context-toggle'),
     };
 
     let systemMessage, userMessage;
@@ -365,7 +376,8 @@ function updateStateFromUI(e) {
     if (el.type === 'checkbox') {
         value = el.checked;
     } else if (el.type === 'range' || el.type === 'number') {
-        value = parseFloat(el.value);
+        const parsed = parseFloat(el.value);
+        value = isNaN(parsed) ? 0 : parsed; // Prevent NaN
     } else if (el.multiple) {
         value = Array.from(el.selectedOptions).map(opt => opt.value);
     } else {
