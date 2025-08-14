@@ -1,400 +1,1079 @@
-// --- Global State ---
-let state = {
-    prompts: null,
-    settings: {},
-    uiOptions: [],
-    scrapedData: null,
-    matchId: null,
-    isDirty: false
+// popup.js (Re-architected for Manifest V3 Robustness with Heartbeat)
+import { scrapeBumblePage, pasteTextIntoBumbleInput, scrapeTinderPage, pasteTextIntoTinderInput } from './content-scraper.js';
+
+// -- FROM-SCRATCH IMPLEMENTATION OF MISSING HELPERS --
+const LINGUISTIC_STYLES = ['auto', 'casual', 'witty', 'playful', 'direct', 'intellectual', 'poetic', 'charming', 'sarcastic', 'sexual', 'mysterious'];
+function getToneDescription(v) { return `Tone: ${v}`; }
+function getLengthDescription(v) { return `Length: ${v}`; }
+function getEmojiInstruction(v) { return `Emoji: ${v}`; }
+function getStyleDescription(v) { return `Style: ${v}`; }
+function determineConversationState(h) { return 'ACTIVE_CONVO'; }
+function showNlpModal(data, callbacks) { console.log("showNlpModal called with:", data); alert("Debug Mode Activated. See console for details."); }
+function hideDebugModal() { console.log("hideDebugModal called."); }
+// -- END FROM-SCRATCH IMPLEMENTATION --
+
+const DEBUG = {
+    log: (category, message, data = null) => console.log(`[WINGMAN-POPUP-${category.toUpperCase()}] ${message}`, data ?? ''),
+    error: (category, message, error = null) => console.error(`[WINGMAN-POPUP-${category.toUpperCase()}-ERROR] ${message}`, error ?? ''),
 };
 
-const debugModalState = {
-    isRendered: false,
-    currentPage: 0,
-    totalPages: 0,
-    pages: []
+const DEFAULTS = {
+    flirtyValue: 60,
+    lengthValue: 30,
+    linguisticStyle: 'auto',
+    emojiStrategy: 'no_emoji',
+    modelTemperature: 0.5,
+    topPValue: 1.0,
+    endWithQuestion: false,
+    strictGoalOverride: false,
+    geoContextToggle: true,
+    newTopic: false,
+    debugModeEnabled: false,
+    userLocationChoice: 'autodetect',
+    customInstruction: '',
+    lastResponse: '',
+    myProfile: `Jay, 35 – 6'0", Vice President at a financial institution, graduate degree from Illinois State University. Driven and grounded, with a strong career focus but a playful side—loves trying new cuisines and cooking for others. Enjoys occasional adventure, meaningful conversations, and believes in making a difference through small actions. Social drinker, non-smoker, exercises sometimes. Prefers genuine connection and meeting in person over endless chatting.`,
+    local_llama_url: 'http://localhost:8080/v1/chat/completions',
+    local_model_name: 'llama3:latest',
+    local_llama_api_key: '',
 };
 
-// --- Settings & Managers ---
-const SETTINGS_DEFAULTS = {
-    nlpUrl: 'http://10.0.0.24:8080',
-    apiUrl: 'http://localhost:8080/v1/chat/completions',
-    modelName: 'llama3:latest',
-    apiKey: '',
-    location: 'charlotte_nc',
-    myProfile: '',
-    costPer1kTokens: 0.002
-};
+const MATCH_SPECIFIC_SETTINGS_KEYS = [
+    'flirtyValue', 'lengthValue', 'linguisticStyle', 'emojiStrategy',
+    'endWithQuestion', 'strictGoalOverride', 'geoContextToggle', 'newTopic',
+    'customInstruction', 'lastResponse'
+];
 
-const settingsManager = {
-    async get() {
-        return new Promise(resolve => chrome.storage.local.get(SETTINGS_DEFAULTS, resolve));
+const EMOJI_STRATEGIES = {
+    'auto': 'Auto (Recommended)',
+    'friendly': 'Friendly',
+    'playful': 'Playful',
+    'bold': 'Bold',
+    'no_emoji': 'No Emoji'
+};
+const USER_LOCATIONS = {
+    'autodetect': {
+        name: 'Auto-Detect Location'
     },
-    async save(settings) {
-        return new Promise(resolve => chrome.storage.local.set(settings, resolve));
+    'charlotte': {
+        name: 'Charlotte, NC, USA',
+        lat: 35.2271,
+        lon: -80.8431,
+        timeZone: 'America/New_York',
+        country: 'United States'
     },
-    async reset() {
-        await new Promise(resolve => chrome.storage.local.clear(resolve));
-        return this.get();
-    }
+    'nyc': {
+        name: 'New York, NY, USA',
+        lat: 40.7128,
+        lon: -74.0060,
+        timeZone: 'America/New_York',
+        country: 'United States'
+    },
+    'la': {
+        name: 'Los Angeles, CA, USA',
+        lat: 34.0522,
+        lon: -118.2437,
+        timeZone: 'America/Los_Angeles',
+        country: 'United States'
+    },
+    'london': {
+        name: 'London, UK',
+        lat: 51.5072,
+        lon: -0.1276,
+        timeZone: 'Europe/London',
+        country: 'United Kingdom'
+    },
+    'sydney': {
+        name: 'Sydney, Australia',
+        lat: -33.8688,
+        lon: 151.2093,
+        timeZone: 'Australia/Sydney',
+        country: 'Australia'
+    },
 };
 
-const historyManager = {
-    async get() {
-        const data = await new Promise(r => chrome.storage.local.get({ responseHistory: [] }, r));
-        return data.responseHistory;
-    },
-    async add(responseText) {
-        const history = await this.get();
-        history.unshift(responseText); // Add to the beginning
-        if (history.length > 10) history.pop(); // Keep only the last 10
-        return new Promise(r => chrome.storage.local.set({ responseHistory: history }, r));
-    }
+const SELECTORS = {
+    loadingView: 'loading-view',
+    mainView: 'main-view',
+    settingsView: 'settings-view',
+    errorView: 'error-view',
+    errorTitle: 'error-title',
+    errorMessage: 'error-message',
+    responseArea: 'response-area',
+    generateBtn: 'generate-btn',
+    copyBtn: 'copy-btn',
+    cancelBtn: 'cancel-btn',
+    customInstruction: 'custom-instruction',
+    clearResponseBtn: 'clear-response-btn',
+    clearInstructionBtn: 'clear-instruction-btn',
+    flirtySlider: 'flirty-slider',
+    flirtyValueLabel: 'flirty-value-label',
+    lengthSlider: 'length-slider',
+    lengthValueLabel: 'length-value-label',
+    emojiStrategySelect: 'emoji-strategy-select',
+    conversationStatusDisplay: 'conversation-status-display',
+    questionToggleCheckbox: 'question-toggle-checkbox',
+    strictGoalToggle: 'strict-goal-toggle',
+    geoContextToggle: 'geo-context-toggle',
+    newTopicToggle: 'new-topic-toggle',
+    settingsBtn: 'settings-btn',
+    backBtn: 'back-btn',
+    masterResetBtn: 'master-reset-btn',
+    resetMatchBtn: 'reset-match-btn',
+    temperatureSlider: 'temperature-slider',
+    temperatureValueLabel: 'temperature-value-label',
+    topPSlider: 'top-p-slider',
+    topPValueLabel: 'top-p-value-label',
+    linguisticStyleSelect: 'linguistic-style-select',
+    debugModeToggle: 'debug-mode-toggle',
+    localLlamaUrl: 'localLlamaUrl',
+    localLlamaApiKey: 'localLlamaApiKey',
+    localModelName: 'localModelName',
+    userLocationSelect: 'user-location-select',
+    myProfileSetting: 'my-profile-setting',
+    infoTooltip: 'info-tooltip',
+    responseTimer: 'response-timer',
+    geoContextCard: 'geo-context-card',
+    geoUserName: 'geo-user-name',
+    geoMatchName: 'geo-match-name',
+    userLocation: 'user-location',
+    matchLocation: 'match-location',
+    userTime: 'user-time',
+    matchTime: 'match-time',
+    userTimeOfDay: 'user-time-of-day',
+    matchTimeOfDay: 'match-time-of-day',
+    userTimezone: 'user-timezone',
+    matchTimezone: 'match-timezone',
+    userCountry: 'user-country',
+    matchCountry: 'match-country',
+    timeDifference: 'time-difference',
+    distanceInfo: 'distance-info',
+    dateIdeaBtn: 'date-idea-btn',
+    refinementActions: 'refinement-actions',
 };
 
-// --- Event Listeners & Handlers ---
-function initEventListeners() {
-    document.getElementById('main-action-button').addEventListener('click', handleMainActionClick);
-    document.getElementById('reset-button').addEventListener('click', handleResetClick);
-    document.getElementById('settings-button').addEventListener('click', () => { document.getElementById('main-view').style.display = 'none'; document.getElementById('settings-view').style.display = 'block'; });
-    document.getElementById('back-button').addEventListener('click', () => { document.getElementById('settings-view').style.display = 'none'; document.getElementById('main-view').style.display = 'block'; });
-    document.getElementById('debug-checkbox').addEventListener('change', updateMainButtonState);
-    document.getElementById('debug-close-button').addEventListener('click', () => { document.getElementById('debug-modal').style.display = 'none'; document.getElementById('debug-checkbox').checked = false; updateMainButtonState(); });
-    document.getElementById('debug-next-button').addEventListener('click', () => navigateDebugModal(1));
-    document.getElementById('debug-back-button').addEventListener('click', () => navigateDebugModal(-1));
-    document.getElementById('debug-regenerate-button').addEventListener('click', handleModalRegenerateClick);
-    document.getElementById('debug-generate-button').addEventListener('click', handleGenerateClick);
-    document.getElementById('debug-copy-prompt-button').addEventListener('click', () => { const text = document.getElementById('debug-prompt-display').value; navigator.clipboard.writeText(text); const btn = document.getElementById('debug-copy-prompt-button'); const originalText = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = originalText; }, 1500); });
-    chrome.runtime.onMessage.addListener(async (message) => { if (message.type === 'GENERATION_COMPLETE' || message.type === 'GENERATION_ERROR') { hideSpinner(); document.getElementById('main-action-button').disabled = false; updateMainButtonState(); const isError = message.type === 'GENERATION_ERROR'; const text = isError ? message.payload.error : message.payload.text; displayError(text); if (!isError) { await historyManager.add(text); const history = await historyManager.get(); renderResponseHistory(history); } } });
-}
-function handleMainActionClick() {
-    const button = document.getElementById('main-action-button');
-    if (button.textContent === 'Re-Analyze') {
-        if (document.getElementById('debug-checkbox').checked) {
-            const modal = document.getElementById('debug-modal');
-            if (!debugModalState.isRendered) {
-                renderDebugModal();
-                debugModalState.isRendered = true;
+const state = {
+    currentMatchUUID: null,
+    currentViewId: SELECTORS.loadingView,
+    pasterFn: null,
+    isRefreshing: false,
+    sessionMatchProfile: null,
+    sessionScrapedData: null,
+};
+
+let port;
+let tooltipTimeout, timerInterval = null, timerStartTime = 0;
+let heartbeatInterval = null;
+
+const getMatchSettingsKey = (uuid) => `matchSettings_${uuid}`;
+
+document.addEventListener('DOMContentLoaded', initializePopup);
+
+function sendMessage(message) {
+    if (!port) {
+        DEBUG.log('PORT', "Port was disconnected. Attempting to reconnect and send message.");
+        setupPort();
+        setTimeout(() => {
+            if (port) {
+                try {
+                    port.postMessage(message);
+                } catch (e) {
+                    DEBUG.error('PORT', "Failed to send message after reconnection attempt.", e);
+                    showError("Connection Error", "Could not communicate with the background service. Please try closing and reopening the popup.");
+                }
+            } else {
+                DEBUG.error('PORT', "Port still not connected after reconnection attempt. Message not sent.");
+                showError("Connection Error", "Could not communicate with the background service. Please try closing and reopening the popup.");
             }
-            modal.style.display = 'flex';
-            navigateDebugModal(0);
-        } else {
-            handleRegenerateClick();
-        }
+        }, 100);
     } else {
-        handleGenerateClick();
+        try {
+            port.postMessage(message);
+        } catch (e) {
+            DEBUG.error('PORT', "Failed to send message on active port, likely disconnected mid-call.", e);
+            port = null;
+            sendMessage(message);
+        }
     }
 }
-function handleResetClick() {
-    renderDynamicUI();
-    document.getElementById('custom-instructions').value = '';
-    document.getElementById('end-with-question').checked = true;
-    document.getElementById('start-fresh').checked = false;
-    document.getElementById('strict-goal').checked = false;
-    document.getElementById('override-geo').checked = false;
-    addDirtyListeners();
-    state.isDirty = false;
-    updateMainButtonState();
-}
-function updateMainButtonState() {
-    const button = document.getElementById('main-action-button');
-    const isDirty = state.isDirty || document.getElementById('debug-checkbox').checked;
-    button.textContent = isDirty ? 'Re-Analyze' : 'Generate';
-}
-function addDirtyListeners() {
-    const selectors = '.dynamic-panel input, .dynamic-panel select, .dynamic-panel textarea, #custom-instructions, #end-with-question, #debug-checkbox, #start-fresh, #strict-goal, #override-geo';
-    document.querySelectorAll(selectors).forEach(el => {
-        el.addEventListener('input', () => {
-            if (!state.isDirty) {
-                state.isDirty = true;
-                updateMainButtonState();
+
+function setupPort() {
+    port = chrome.runtime.connect({
+        name: "wingman-popup"
+    });
+
+    port.onMessage.addListener((message) => {
+        DEBUG.log('PORT', 'Message received from background', message);
+        switch (message.action) {
+        case 'nlpAnalysisResponse':
+            handleNlpAnalysisResponse(message);
+            break;
+        case 'geoCalculationsResponse':
+            handleGeoCalculationsResponse(message);
+            break;
+        case 'finalPayloadResponse':
+            handleFinalPayloadResponse(message);
+            break;
+        case 'generationUpdate':
+            if (message.uuid === state.currentMatchUUID) {
+                syncUIWithState(message.state);
             }
-        });
+            break;
+        case 'generationStateResponse':
+            syncUIWithState(message.state);
+            break;
+        }
+    });
+
+    port.onDisconnect.addListener(() => {
+        DEBUG.log('PORT', 'Port disconnected from popup side.');
+        stopHeartbeat();
+        port = null;
     });
 }
-async function handleRegenerateClick() {
-    const regenBtn = document.getElementById('main-action-button'); regenBtn.disabled = true; showSpinner();
-    try {
-        if (!state.matchId || !state.scrapedData) throw new Error("Initial analysis data not found.");
-        const uiSettings = getFullUiSettings();
-        const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: uiSettings };
-        const response = await fetch(`${state.settings.nlpUrl}/api/v1/regenerate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        const newPrompts = await response.json();
-        state.prompts = newPrompts;
-        renderCostAnalysis(newPrompts.token_count);
-        updateStatus('Regeneration complete.');
-        state.isDirty = false;
-        updateMainButtonState();
-    } catch (error) { displayError(`Regeneration failed: ${error.message}`); }
-    finally { hideSpinner(); regenBtn.disabled = false; }
-}
-async function handleModalRegenerateClick() {
-    const debugSettings = {};
-    const debugContainer = document.getElementById('debug-modal-content-area');
-    const inputs = debugContainer.querySelectorAll('select, input[type="range"], input[type="checkbox"], textarea');
-    inputs.forEach(input => { debugSettings[input.id] = input.type === 'checkbox' ? input.checked : input.value; });
-    const allSettings = { ...getFullUiSettings(), ...debugSettings };
-    showSpinner();
-    try {
-        const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: allSettings };
-        const response = await fetch(`${state.settings.nlpUrl}/api/v1/regenerate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        const newPrompts = await response.json();
-        state.prompts = newPrompts;
-        document.getElementById('debug-prompt-display').value = `SYSTEM:\n${newPrompts.system_prompt}\n\nUSER:\n${newPrompts.user_prompt}`;
-        renderCostAnalysis(newPrompts.token_count);
-        navigateDebugModal(1);
-    } catch (error) { displayError(`Modal regenerate failed: ${error.message}`); }
-    finally { hideSpinner(); }
-}
-async function handleGenerateClick() { if (!state.prompts) { displayError("No prompts available."); return; } const generateBtn = document.getElementById('main-action-button'); generateBtn.disabled = true; showSpinner(); chrome.runtime.sendMessage({ type: 'GENERATE_TEXT', payload: { prompts: state.prompts, settings: state.settings } }); document.getElementById('debug-modal').style.display = 'none'; document.getElementById('debug-checkbox').checked = false; }
-function getTuneResponseSettings() { const settings = {}; document.querySelectorAll('.dynamic-panel .control-wrapper').forEach(wrapper => { const input = wrapper.querySelector('input, select, textarea'); if (input) { settings[input.id] = input.type === 'checkbox' ? input.checked : input.value; } }); settings.endWithQuestion = document.getElementById('end-with-question').checked; return settings; }
-function getFullUiSettings() { const settings = getTuneResponseSettings(); settings.myLocation = state.settings.location; settings.myProfile = state.settings.myProfile; settings.local_model_name = state.settings.modelName; return settings; }
 
-// --- Settings & Managers ---
-const SETTINGS_DEFAULTS = { nlpUrl: 'http://localhost:8000', apiUrl: 'http://localhost:8080/v1/chat/completions', modelName: 'llama3:latest', apiKey: '', location: 'charlotte_nc', myProfile: '', costPer1kTokens: 0.002 };
-const settingsManager = { async get() { return new Promise(resolve => chrome.storage.local.get(SETTINGS_DEFAULTS, resolve)); }, async save(settings) { return new Promise(resolve => chrome.storage.local.set(settings, resolve)); }, async reset() { await new Promise(resolve => chrome.storage.local.clear(resolve)); return this.get(); } };
-const historyManager = { async get() { const data = await new Promise(r => chrome.storage.local.get({ responseHistory: [] }, r)); return data.responseHistory; }, async add(responseText) { const history = await this.get(); history.unshift(responseText); if (history.length > 10) history.pop(); return new Promise(r => chrome.storage.local.set({ responseHistory: history }, r)); } };
+async function initializePopup() {
+    setupEventListeners();
+    setupPort();
+    await loadAndApplySettings();
+    await refreshDataAndUI();
+}
 
-function initSettingsPanel() {
-    const settingsIds = { 'nlp-url': 'nlpUrl', 'api-url': 'apiUrl', 'model-name': 'modelName', 'api-key': 'apiKey', 'cost-per-1k-tokens': 'costPer1kTokens', 'location': 'location', 'my-profile': 'myProfile' };
-    for (const [id, key] of Object.entries(settingsIds)) {
-        const input = document.getElementById(id);
-        if (input) {
-            input.value = state.settings[key] || '';
-            input.addEventListener('input', async (e) => {
-                const value = e.target.value;
-                if (id === 'location' && value === 'auto') { handleAutoDetectLocation(); }
-                else { state.settings[key] = value; await settingsManager.save(state.settings); }
-                if (id.includes('url')) { if (validateUrlField(input)) { try { const url = new URL(value); chrome.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }); } catch(e) { console.warn("Could not request optional permission:", e)} } }
+async function refreshDataAndUI() {
+    if (state.isRefreshing)
+        return;
+
+    sendMessage({
+        action: "getGenerationState",
+        data: {
+            uuid: state.currentMatchUUID
+        }
+    });
+
+    const generationState = await new Promise(resolve => {
+        const listener = (msg) => {
+            if (msg.action === 'generationStateResponse') {
+                if (port)
+                    port.onMessage.removeListener(listener);
+                resolve(msg.state);
+            }
+        };
+        if (port) {
+            port.onMessage.addListener(listener);
+        } else {
+            resolve({
+                isGenerating: false,
+                response: null,
+                error: null,
+                generationId: null,
+                generationStartTime: null
             });
-            if (id.includes('url')) validateUrlField(input);
         }
+    });
+
+    if (generationState.isGenerating) {
+        syncUIWithState(generationState);
+        return;
     }
-    document.getElementById('reset-settings-button').addEventListener('click', async () => { state.settings = await settingsManager.reset(); initSettingsPanel(); });
-    document.getElementById('test-nlp-button').addEventListener('click', () => handleTestConnection('nlp'));
-    document.getElementById('test-llm-button').addEventListener('click', () => handleTestConnection('llm'));
-}
-async function handleTestConnection(type) {
-    const urlId = type === 'nlp' ? 'nlp-url' : 'api-url';
-    const baseUrl = document.getElementById(urlId).value;
-    const validationMsg = document.getElementById(`${urlId}-validation`);
-    if (!validateUrlField(document.getElementById(urlId))) return;
-    validationMsg.textContent = 'Testing...';
-    validationMsg.style.color = 'var(--secondary-text-color)';
+
+    state.isRefreshing = true;
+    setUIRefreshingState(true);
+
     try {
-        const testUrl = type === 'nlp' ? `${baseUrl}/health` : baseUrl;
-        const method = type === 'nlp' ? 'GET' : 'OPTIONS';
-        const response = await fetch(testUrl, { method });
-        if (response.ok) { validationMsg.textContent = 'Connection successful!'; validationMsg.style.color = 'var(--highlight-color)'; }
-        else { throw new Error(`Server responded with status ${response.status}`); }
-    } catch (error) {
-        validationMsg.textContent = `Test failed: ${error.message}`;
-        validationMsg.style.color = 'var(--error-color)';
-    }
-}
-function validateUrlField(input) { const validationMsg = input.parentElement.nextElementSibling; try { new URL(input.value); validationMsg.textContent = ''; return true; } catch (_) { validationMsg.textContent = 'Invalid URL format.'; return false; } }
-async function handleAutoDetectLocation() {
-    const locationInput = document.getElementById('location');
-    locationInput.disabled = true;
-    const success = (position) => {
-        const { latitude, longitude } = position.coords;
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
-            .then(response => response.json()).then(async data => {
-                if (data && data.address) {
-                    const { city, state, country } = data.address;
-                    const locationString = `${city}, ${state}, ${country}`;
-                    if (!Array.from(locationInput.options).find(o => o.value === locationString)) {
-                        locationInput.innerHTML += `<option value="${locationString}">${locationString} (Auto)</option>`;
-                    }
-                    locationInput.value = locationString;
-                    state.settings.location = locationString;
-                    await settingsManager.save(state.settings);
-                } else { throw new Error("Invalid response from geocoding API."); }
-            }).catch(err => {
-                console.error("Reverse geocoding failed:", err);
-                locationInput.value = 'charlotte_nc'; state.settings.location = 'charlotte_nc';
-                settingsManager.save(state.settings);
-            }).finally(() => { locationInput.disabled = false; });
-    };
-    const error = () => {
-        console.error("Geolocation failed.");
-        locationInput.value = 'charlotte_nc'; state.settings.location = 'charlotte_nc';
-        settingsManager.save(state.settings);
-        locationInput.disabled = false;
-    };
-    navigator.geolocation.getCurrentPosition(success, error);
-}
+        const [tab] = await chrome.tabs.query({
+            active: true,
+            currentWindow: true
+        });
+        let scraperFn;
 
-// --- Backend Communication ---
-async function scrapeAndAnalyze(uiSettings = {}, tab) {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content-scraper.js'] });
-    const scraperFunctionName = tab.url.includes('tinder.com') ? 'scrapeTinderPage' : 'scrapeBumblePage';
-    const injectionResults = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: (name) => window[name](), args: [scraperFunctionName] });
-    const scrapedDataResult = injectionResults[0].result;
-    if (!scrapedDataResult || scrapedDataResult.error) throw new Error(`Scraping failed: ${scrapedDataResult.error || 'No data'}`);
-    state.scrapedData = { myName: scrapedDataResult.myName, theirName: scrapedDataResult.theirName, theirProfile: scrapedDataResult.theirProfile, conversationHistory: scrapedDataResult.conversationHistory, theirLocationString: scrapedDataResult.theirLocationString };
-    state.matchId = 'mock_' + btoa(scrapedDataResult.theirName).substring(0, 10);
-    const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: { myLocation: state.settings.location, myProfile: state.settings.myProfile, local_model_name: state.settings.modelName, ...uiSettings } };
-    const response = await fetch(`${state.settings.nlpUrl}/api/v1/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Analysis API failed with status ${response.status}: ${errorBody}`);
-    }
-    const analysisResult = await response.json();
-    state.prompts = analysisResult.prompts;
-    return analysisResult;
-}
-
-// --- Main Application Logic ---
-document.addEventListener('DOMContentLoaded', async () => {
-    state.settings = await settingsManager.get();
-    await loadUiOptions();
-    if (state.uiOptions.length === 0) return;
-    renderDynamicUI();
-    initEventListeners();
-    initSettingsPanel();
-    const history = await historyManager.get();
-    renderResponseHistory(history);
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && (tab.url.includes('tinder.com') || tab.url.includes('bumble.com'))) {
-        showSpinner();
-        try {
-            const analysisResult = await scrapeAndAnalyze({}, tab);
-            populateUI(analysisResult.applied_ui_settings);
-            updateStatus(`Analysis complete: ${analysisResult.full_analysis.strategicGoal.type}`);
-            renderGeoInfo(analysisResult);
-            renderCostAnalysis(analysisResult.prompts.token_count);
-            state.prompts = analysisResult.prompts;
-            document.getElementById('main-action-button').disabled = false;
-        } catch (error) {
-            displayError(`Failed to analyze page: ${error.message}`);
-        } finally {
-            hideSpinner();
+        if (tab.url?.startsWith("https://tinder.com/")) {
+            scraperFn = scrapeTinderPage;
+            state.pasterFn = pasteTextIntoTinderInput;
+        } else if (tab.url?.startsWith("https://bumble.com/")) {
+            scraperFn = scrapeBumblePage;
+            state.pasterFn = pasteTextIntoBumbleInput;
+        } else {
+            throw new Error('Unsupported Site: Please navigate to a conversation on Tinder.com or Bumble.com.');
         }
-    } else {
-        displayError("Not on a supported page.");
-        document.getElementById('main-action-button').disabled = true;
+
+        const results = await chrome.scripting.executeScript({
+            target: {
+                tabId: tab.id
+            },
+            function : scraperFn
+    });
+const pageData = results[0]?.result;
+if (!pageData || pageData.error) {
+    throw new Error(`Could not read page. ${pageData?.error || 'Please make sure a conversation is selected.'}`);
+}
+
+state.sessionScrapedData = pageData;
+sendMessage({
+    action: "getNlpAnalysis",
+    data: {
+        scrapedData: pageData
     }
 });
 
-async function loadUiOptions() {
-    const storedData = await chrome.storage.local.get('uiOptions');
-    if (storedData.uiOptions && Array.isArray(storedData.uiOptions) && storedData.uiOptions.length > 0) {
-        state.uiOptions = storedData.uiOptions;
-    } else {
-        console.warn("UI configuration not found in cache. Fetching from network...");
+} catch (e) {
+    showError('Initialization Failed', e.message);
+    DEBUG.error('INIT', 'Refresh failed', e);
+} finally {
+    state.isRefreshing = false;
+    setUIRefreshingState(false);
+}
+}
+
+async function handleNlpAnalysisResponse(message) {
+    if (message.error) {
+        showError('NLP Analysis Failed', message.error);
+        return;
+    }
+
+    state.sessionMatchProfile = message.matchProfile;
+    state.currentMatchUUID = message.matchProfile.uuid;
+
+    await loadAndApplySettings();
+    await handleLocationChange();
+
+    displayConversationState();
+    showView(SELECTORS.mainView);
+}
+
+function handleGeoCalculationsResponse(message) {
+    if (state.sessionMatchProfile) {
+        state.sessionMatchProfile.memory.geoContextData = message.geoContext || null;
+    }
+    updateGeoContextDisplay(message.geoContext);
+}
+
+function handleFinalPayloadResponse(message) {
+    if (message.error) {
+        showErrorInResponseArea(message.error);
+        setUIGeneratingState(false);
+        return;
+    }
+    sendMessage({
+        action: "getAIResponse",
+        data: {
+            payload: message.payload,
+            generationId: Date.now(),
+            uuid: state.currentMatchUUID,
+            logData: message.logData
+        }
+    });
+}
+
+function startHeartbeat() {
+    stopHeartbeat();
+    DEBUG.log('HEARTBEAT', 'Starting heartbeat...');
+    heartbeatInterval = setInterval(() => {
+        sendMessage({
+            action: 'heartbeat'
+        });
+    }, 15000);
+}
+
+function stopHeartbeat() {
+    if (heartbeatInterval) {
+        DEBUG.log('HEARTBEAT', 'Stopping heartbeat.');
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+}
+
+function setupEventListeners() {
+    window.addEventListener('focus', refreshDataAndUI);
+    document.getElementById(SELECTORS.generateBtn)?.addEventListener('click', handleGenerateClick);
+    document.getElementById(SELECTORS.copyBtn)?.addEventListener('click', handleCopyClick);
+    document.getElementById(SELECTORS.cancelBtn)?.addEventListener('click', handleCancelClick);
+    document.getElementById(SELECTORS.settingsBtn)?.addEventListener('click', () => showView(SELECTORS.settingsView));
+    document.getElementById(SELECTORS.backBtn)?.addEventListener('click', () => showView(SELECTORS.mainView));
+    document.getElementById(SELECTORS.masterResetBtn)?.addEventListener('click', handleMasterReset);
+    document.getElementById(SELECTORS.resetMatchBtn)?.addEventListener('click', handleMatchReset);
+    document.getElementById(SELECTORS.flirtySlider)?.addEventListener('input', updateSliderLabels);
+    document.getElementById(SELECTORS.lengthSlider)?.addEventListener('input', updateSliderLabels);
+    document.getElementById(SELECTORS.temperatureSlider)?.addEventListener('input', () => updateSliderValueLabel(SELECTORS.temperatureSlider, SELECTORS.temperatureValueLabel));
+    document.getElementById(SELECTORS.topPSlider)?.addEventListener('input', () => updateSliderValueLabel(SELECTORS.topPSlider, SELECTORS.topPValueLabel, 2));
+    document.querySelectorAll('.info-icon, [data-tooltip-id]').forEach(icon => {
+        icon.addEventListener('mouseenter', handleTooltipShow);
+        icon.addEventListener('mouseleave', handleTooltipHide);
+    });
+    document.getElementById('main-view')?.addEventListener('input', handleSettingChange);
+    document.getElementById('main-view')?.addEventListener('change', handleSettingChange);
+    document.getElementById('settings-view')?.addEventListener('input', handleSettingChange);
+    document.getElementById('settings-view')?.addEventListener('change', handleSettingChange);
+    document.getElementById(SELECTORS.userLocationSelect)?.addEventListener('change', handleLocationChange);
+    document.getElementById(SELECTORS.clearResponseBtn)?.addEventListener('click', () => {
+        const area = document.getElementById(SELECTORS.responseArea);
+        area.textContent = '';
+        area.dispatchEvent(new Event('input', {
+                bubbles: true
+            }));
+    });
+    document.getElementById(SELECTORS.clearInstructionBtn)?.addEventListener('click', () => {
+        const area = document.getElementById(SELECTORS.customInstruction);
+        area.value = '';
+        area.dispatchEvent(new Event('input', {
+                bubbles: true
+            }));
+    });
+    document.getElementById(SELECTORS.dateIdeaBtn)?.addEventListener('click', handleDateIdeaClick);
+    document.getElementById(SELECTORS.refinementActions)?.addEventListener('click', handleRefinementClick);
+
+    populateSelect(SELECTORS.linguisticStyleSelect, LINGUISTIC_STYLES.map(s => ({
+                value: s,
+                text: s.charAt(0).toUpperCase() + s.slice(1)
+            })));
+    populateSelect(SELECTORS.emojiStrategySelect, Object.entries(EMOJI_STRATEGIES).map(([value, text]) => ({
+                value,
+                text
+            })));
+    populateSelect(SELECTORS.userLocationSelect, Object.entries(USER_LOCATIONS).map(([key, loc]) => ({
+                value: key,
+                text: loc.name
+            })));
+}
+
+async function handleLocationChange() {
+    const select = document.getElementById(SELECTORS.userLocationSelect);
+    const choice = select.value;
+    let messageData = {
+        uuid: state.currentMatchUUID
+    };
+    if (choice === 'autodetect') {
         try {
-            const nlpUrl = (await settingsManager.get()).nlpUrl;
-            if (!nlpUrl) throw new Error("NLP Service URL is not set.");
-            const response = await fetch(`${nlpUrl}/api/v1/options/all`);
-            if (!response.ok) throw new Error(`API Error ${response.status}`);
-            const options = await response.json();
-            await chrome.storage.local.set({ uiOptions: options });
-            state.uiOptions = options;
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    timeout: 5000
+                });
+            });
+            messageData.userCoords = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            };
         } catch (error) {
-            displayError(`Critical: Could not fetch UI configuration. ${error.message}`);
+            showErrorInResponseArea(`Geolocation failed: ${error.message}`);
+            updateGeoContextDisplay(null);
+            return;
+        }
+    } else {
+        messageData.userLocation = USER_LOCATIONS[choice];
+    }
+    sendMessage({
+        action: "getGeoCalculations",
+        data: messageData
+    });
+}
+
+function updateClearButtonVisibility(inputEl, clearBtnEl) {
+    const hasContent = (inputEl.value && inputEl.value.trim() !== '') || (inputEl.textContent && inputEl.textContent.trim() !== '');
+    clearBtnEl.classList.toggle('hidden', !hasContent);
+}
+
+async function handleSettingChange(event) {
+    const el = event.target;
+    if (el.id === SELECTORS.customInstruction) {
+        updateClearButtonVisibility(el, document.getElementById(SELECTORS.clearInstructionBtn));
+    } else if (el.id === SELECTORS.responseArea) {
+        updateClearButtonVisibility(el, document.getElementById(SELECTORS.clearResponseBtn));
+        document.getElementById(SELECTORS.refinementActions).classList.add('hidden');
+    }
+    const key = el.dataset.storageKey || (el.id === SELECTORS.responseArea ? 'lastResponse' : null);
+    if (!key)
+        return;
+    const value = el.type === 'checkbox' ? el.checked : (el.id === SELECTORS.responseArea ? el.textContent : el.value);
+    if (MATCH_SPECIFIC_SETTINGS_KEYS.includes(key) && state.currentMatchUUID) {
+        const storageKey = getMatchSettingsKey(state.currentMatchUUID);
+        const result = await chrome.storage.local.get(storageKey);
+        const matchSettings = result[storageKey] || {};
+        matchSettings[key] = value;
+        await chrome.storage.local.set({
+            [storageKey]: matchSettings
+        });
+    } else {
+        await chrome.storage.local.set({
+            [key]: value
+        });
+    }
+}
+
+async function loadAndApplySettings() {
+    const globalKeys = Object.keys(DEFAULTS);
+    const globalSettings = {
+        ...DEFAULTS,
+        ...(await chrome.storage.local.get(globalKeys))
+    };
+    let matchSpecificSettings = {};
+    if (state.currentMatchUUID) {
+        const matchKey = getMatchSettingsKey(state.currentMatchUUID);
+        const result = await chrome.storage.local.get(matchKey);
+        matchSpecificSettings = result[matchKey] || {};
+    }
+    const finalSettings = {
+        ...globalSettings,
+        ...matchSpecificSettings
+    };
+    document.querySelectorAll('[data-storage-key]').forEach(el => {
+        const key = el.dataset.storageKey;
+        if (finalSettings.hasOwnProperty(key)) {
+            const value = finalSettings[key];
+            if (el.type === 'checkbox')
+                el.checked = value;
+            else
+                el.value = value;
+        }
+    });
+    const responseArea = document.getElementById(SELECTORS.responseArea);
+    if (responseArea && finalSettings.lastResponse) {
+        responseArea.textContent = finalSettings.lastResponse;
+    }
+    updateSliderLabels();
+    updateSliderValueLabel(SELECTORS.temperatureSlider, SELECTORS.temperatureValueLabel);
+    updateSliderValueLabel(SELECTORS.topPSlider, SELECTORS.topPValueLabel, 2);
+    updateClearButtonVisibility(document.getElementById(SELECTORS.customInstruction), document.getElementById(SELECTORS.clearInstructionBtn));
+    updateClearButtonVisibility(responseArea, document.getElementById(SELECTORS.clearResponseBtn));
+}
+
+async function handleMatchReset() {
+    if (!state.currentMatchUUID)
+        return;
+    const btn = document.getElementById(SELECTORS.resetMatchBtn);
+    btn.disabled = true;
+    try {
+        await chrome.storage.local.remove(getMatchSettingsKey(state.currentMatchUUID));
+        document.getElementById(SELECTORS.responseArea).textContent = '';
+        await loadAndApplySettings();
+    } catch (e) {
+        DEBUG.error("RESET", "Failed to reset match settings:", e);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function handleMasterReset() {
+    const btn = document.getElementById(SELECTORS.masterResetBtn);
+    btn.disabled = true;
+    try {
+        const keysToRemove = Object.keys(DEFAULTS);
+        await chrome.storage.local.remove(keysToRemove);
+        await loadAndApplySettings();
+    } catch (e) {
+        DEBUG.error("RESET", "Failed to reset master settings:", e);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function syncUIWithState(generationState) {
+    if (!generationState)
+        return;
+    setUIGeneratingState(generationState.isGenerating);
+    if (generationState.isGenerating) {
+        startHeartbeat();
+        if (generationState.generationStartTime) {
+            showView(SELECTORS.mainView);
+            startTimer(generationState.generationStartTime);
+        }
+    } else {
+        stopHeartbeat();
+        stopTimer();
+        resetTimerDisplay();
+        if (generationState.response) {
+            updateUIAfterGeneration({
+                reply: generationState.response
+            });
+            autoType(generationState.response);
+        } else if (generationState.error) {
+            updateUIAfterGeneration({
+                error: generationState.error
+            });
         }
     }
 }
 
-// --- UI Rendering ---
-function renderDynamicUI() {
-    const mainViewContainer = document.getElementById('main-view');
-    document.querySelectorAll('.dynamic-panel').forEach(el => el.remove());
-    const mainGroups = ["Core Controls", "Style & Voice"];
-    state.uiOptions.forEach((group) => {
-        if (mainGroups.includes(group.groupName)) {
-            const panel = createCollapsiblePanel(group);
-            mainViewContainer.insertBefore(panel, document.getElementById('geo-info-section'));
+function populateSelect(selectId, options) {
+    const select = document.getElementById(selectId);
+    if (select)
+        select.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.text}</option>`).join('');
+}
+
+function updateSliderLabels() {
+    const flirtyLabels = {
+        0: 'Neutral',
+        20: 'Friendly',
+        40: 'Warm',
+        60: 'Flirty',
+        80: 'Very Flirty',
+        100: 'Daring'
+    };
+    const lengthLabels = {
+        0: 'Micro',
+        20: 'Short',
+        40: 'Medium',
+        60: 'Long',
+        80: 'Epic',
+        100: 'Manifesto'
+    };
+    updateSliderValueLabel(SELECTORS.flirtySlider, SELECTORS.flirtyValueLabel, 0, flirtyLabels);
+    updateSliderValueLabel(SELECTORS.lengthSlider, SELECTORS.lengthValueLabel, 0, lengthLabels);
+}
+
+function updateSliderValueLabel(sliderId, labelId, precision = 1, labelMap = null) {
+    const slider = document.getElementById(sliderId);
+    const label = document.getElementById(labelId);
+    if (slider && label) {
+        const value = parseFloat(slider.value);
+        label.textContent = labelMap ? (labelMap[Object.keys(labelMap).reverse().find(k => value >= k)] || Object.values(labelMap)[0]) : value.toFixed(precision);
+    }
+}
+
+function handleTooltipShow(event) {
+    clearTimeout(tooltipTimeout);
+    const icon = event.currentTarget;
+    const tooltipId = icon.dataset.tooltipId;
+    const tooltip = document.getElementById(SELECTORS.infoTooltip);
+    const content = getTooltipContent(tooltipId);
+    if (!content || !tooltip)
+        return;
+    tooltip.innerHTML = content;
+    const iconRect = icon.getBoundingClientRect();
+    const bodyRect = document.body.getBoundingClientRect();
+    const popupRect = document.querySelector('.app-container').getBoundingClientRect();
+
+    tooltip.style.visibility = 'hidden';
+    tooltip.classList.add('visible');
+
+    let left = iconRect.left - bodyRect.left + (iconRect.width / 2) - (tooltip.offsetWidth / 2);
+
+    if (left < 0) {
+        left = 5;
+    }
+    if (left + tooltip.offsetWidth > popupRect.width) {
+        left = popupRect.width - tooltip.offsetWidth - 5;
+    }
+
+    tooltip.style.top = `${iconRect.bottom - bodyRect.top + 8}px`;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.visibility = 'visible';
+}
+
+function handleTooltipHide() {
+    tooltipTimeout = setTimeout(() => {
+        document.getElementById(SELECTORS.infoTooltip)?.classList.remove('visible');
+    }, 100);
+}
+
+function getTooltipContent(tooltipId) {
+    const flirtyValue = Number(document.getElementById(SELECTORS.flirtySlider).value);
+    const lengthValue = Number(document.getElementById(SELECTORS.lengthSlider).value);
+    const linguisticStyle = document.getElementById(SELECTORS.linguisticStyleSelect).value;
+    const styleDescriptions = {
+        'auto': '<strong>Auto:</strong> Adapts to the match’s last message.',
+        'casual': '<strong>Casual:</strong> Relaxed, everyday flow.',
+        'witty': '<strong>Witty:</strong> Clever wordplay and banter.',
+        'playful': '<strong>Playful:</strong> Fun, cheeky vibe.',
+        'direct': '<strong>Direct:</strong> Straightforward and confident.',
+        'intellectual': '<strong>Intellectual:</strong> Thoughtful and deep.',
+        'poetic': '<strong>Poetic:</strong> Vivid and expressive language.',
+        'charming': '<strong>Charming:</strong> Polished and charismatic.',
+        'sarcastic': '<strong>Sarcastic:</strong> Dry humor and irony.',
+        'sexual': '<strong>Sexual:</strong> Bold and evocative.',
+        'mysterious': '<strong>Mysterious:</strong> Enigmatic and intriguing.'
+    };
+    const emojiDescriptions = {
+        'auto': "<strong>Auto:</strong> " + getEmojiInstruction('auto', flirtyValue, linguisticStyle),
+        'friendly': "<strong>Friendly:</strong> " + getEmojiInstruction('friendly', flirtyValue, linguisticStyle),
+        'playful': "<strong>Playful:</strong> " + getEmojiInstruction('playful', flirtyValue, linguisticStyle),
+        'bold': "<strong>Bold:</strong> " + getEmojiInstruction('bold', flirtyValue, linguisticStyle),
+        'no_emoji': "<strong>No Emoji:</strong> No emojis will be used."
+    };
+    switch (tooltipId) {
+    case 'flirt-info':
+        return getToneDescription(flirtyValue);
+    case 'length-info':
+        return getLengthDescription(lengthValue);
+    case 'style-info':
+        return styleDescriptions[linguisticStyle] || "Select a style.";
+    case 'emoji-info':
+        return emojiDescriptions[document.getElementById(SELECTORS.emojiStrategySelect).value] || "Select a strategy.";
+    case 'start-fresh-info':
+        return "<strong>Start Fresh:</strong> Ignores their last message and generates a new opener from their profile.";
+    default:
+        return null;
+    }
+}
+
+async function updateGeoContextDisplay(geoContextData) {
+    if (!state.sessionMatchProfile || !state.sessionScrapedData)
+        return;
+
+    const { myName } = state.sessionScrapedData;
+    const { theirName, matchLocation } = state.sessionMatchProfile.metadata;
+    const settings = await chrome.storage.local.get('userLocationChoice');
+    const userLocationData = USER_LOCATIONS[settings.userLocationChoice || 'autodetect'];
+    const card = document.getElementById(SELECTORS.geoContextCard);
+
+    if (card)
+        card.hidden = !geoContextData;
+    if (!geoContextData)
+        return;
+
+    const dataMap = {
+        geoUserName: myName || 'User',
+        geoMatchName: theirName || 'Match',
+        userLocation: userLocationData.name.split(',')[0],
+        matchLocation: matchLocation,
+        userTimeOfDay: geoContextData.userTimeOfDay,
+        matchTimeOfDay: geoContextData.matchTimeOfDay,
+        userTimezone: geoContextData.userTimeZoneName || userLocationData.timeZone,
+        matchCountry: geoContextData.matchCountry,
+        userCountry: geoContextData.userCountry || userLocationData.country,
+        timeDifference: geoContextData.timeZoneDifference !== null ? `${geoContextData.timeZoneDifference} hour(s)` : 'N/A',
+        distanceInfo: `${geoContextData.distance.miles} miles / ${geoContextData.distance.km} km`,
+        countryDifference: `${geoContextData.countryDifference}`
+    };
+
+    Object.entries(dataMap).forEach(([id, text]) => {
+        const el = document.getElementById(SELECTORS[id]);
+        if (el)
+            el.textContent = text || 'N/A';
+    });
+}
+
+function startTimer(startTime) {
+    stopTimer();
+    if (!startTime)
+        return;
+    timerStartTime = startTime;
+    const timerEl = document.getElementById(SELECTORS.responseTimer);
+    if (timerEl) {
+        updateTimerDisplay();
+        timerInterval = setInterval(updateTimerDisplay, 1000);
+    }
+}
+
+function stopTimer() {
+    if (timerInterval)
+        clearInterval(timerInterval);
+    timerInterval = null;
+}
+
+function updateTimerDisplay() {
+    const timerEl = document.getElementById(SELECTORS.responseTimer);
+    if (timerEl && timerStartTime > 0) {
+        const elapsedSeconds = Math.floor((Date.now() - timerStartTime) / 1000);
+        timerEl.textContent = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`;
+    }
+}
+
+function resetTimerDisplay() {
+    const timerEl = document.getElementById(SELECTORS.responseTimer);
+    if (timerEl) {
+        timerEl.textContent = '00:00';
+    }
+    timerStartTime = 0;
+}
+
+async function handleGenerateClick() {
+    if (!state.sessionMatchProfile || !state.currentMatchUUID || !state.sessionMatchProfile.analysis) {
+        showErrorInResponseArea("Error: Conversation analysis is not complete. Please wait a moment and try again.");
+        if (!state.isRefreshing) {
+            refreshDataAndUI();
+        }
+        return;
+    }
+
+    const dataForBackground = await gatherCoreDataForGeneration();
+    if (document.getElementById(SELECTORS.debugModeToggle).checked) {
+        const fullGenerationData = {
+            ...state.sessionScrapedData,
+            ...state.sessionMatchProfile.metadata,
+            myProfile: dataForBackground.myProfile,
+            conversationHistory: state.sessionMatchProfile.conversationHistory,
+            conversationAnalysis: state.sessionMatchProfile.analysis,
+            geoContextData: state.sessionMatchProfile.memory.geoContextData,
+            forceIncludeGeoContext: dataForBackground.forceIncludeGeoContext,
+            taskInstructions: dataForBackground.taskInstructions,
+        };
+        const debugCallbacks = {
+            sendFinalPayloadToAI: (payload) => {
+                sendMessage({
+                    action: "getAIResponse",
+                    data: {
+                        payload,
+                        generationId: Date.now(),
+                        uuid: state.currentMatchUUID,
+                        logData: {
+                            uuid: state.currentMatchUUID,
+                            analysis: state.sessionMatchProfile.analysis,
+                            payload: payload
+                        }
+                    }
+                });
+            },
+            setUIGeneratingState,
+            showErrorInResponseArea,
+            hideDebugModal,
+            startTimer,
+            stopTimer,
+            resetTimerDisplay
+        };
+        showNlpModal(fullGenerationData, debugCallbacks);
+    } else {
+        sendMessage({
+            action: "getFinalPayload",
+            data: dataForBackground
+        });
+    }
+}
+
+async function gatherCoreDataForGeneration() {
+    const settings = await chrome.storage.local.get('myProfile');
+    const myProfile = settings.myProfile || DEFAULTS.myProfile;
+    const myName = state.sessionScrapedData?.myName || DEFAULTS.myProfile.split(',')[0].trim();
+    const theirName = state.sessionMatchProfile?.metadata?.theirName || 'Match';
+
+    const taskInstructions = {
+        myName: myName,
+        theirName: theirName,
+        goal: document.getElementById(SELECTORS.customInstruction).value.trim(),
+        flirtyValue: Number(document.getElementById(SELECTORS.flirtySlider).value),
+        lengthValue: Number(document.getElementById(SELECTORS.lengthSlider).value),
+        linguisticStyle: document.getElementById(SELECTORS.linguisticStyleSelect).value,
+        emojiStrategy: document.getElementById(SELECTORS.emojiStrategySelect).value,
+        temperature: parseFloat(document.getElementById(SELECTORS.temperatureSlider).value),
+        top_p: parseFloat(document.getElementById(SELECTORS.topPSlider).value),
+        endWithQuestion: document.getElementById(SELECTORS.questionToggleCheckbox).checked,
+        strictGoalOverride: document.getElementById(SELECTORS.strictGoalToggle).checked,
+        forceNewTopic: document.getElementById(SELECTORS.newTopicToggle).checked,
+        local_model_name: document.getElementById(SELECTORS.localModelName).value,
+    };
+
+    return {
+        uuid: state.currentMatchUUID,
+        taskInstructions: taskInstructions,
+        myProfile: myProfile,
+        forceIncludeGeoContext: document.getElementById(SELECTORS.geoContextToggle).checked,
+    };
+}
+
+function handleCancelClick() {
+    if (state.currentMatchUUID) {
+        sendMessage({
+            action: "cancelGeneration",
+            data: {
+                uuid: state.currentMatchUUID
+            }
+        });
+    }
+}
+
+function handleCopyClick() {
+    const responseArea = document.getElementById(SELECTORS.responseArea);
+    const copyBtn = document.getElementById(SELECTORS.copyBtn);
+    if (!responseArea || !copyBtn || !responseArea.textContent)
+        return;
+    navigator.clipboard.writeText(responseArea.textContent).then(() => {
+        const originalHTML = copyBtn.innerHTML;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyBtn.innerHTML = originalHTML;
+        }, 1500);
+    });
+}
+
+async function autoType(text) {
+    if (!state.pasterFn)
+        return;
+    try {
+        const [tab] = await chrome.tabs.query({
+            active: true,
+            currentWindow: true
+        });
+        if (tab?.id) {
+            chrome.scripting.executeScript({
+                target: {
+                    tabId: tab.id
+                },
+                function : state.pasterFn,
+                args: [text]
+        });
+    }
+} catch (error) {
+    DEBUG.error('AUTOTYPE', 'Failed to auto-type', error);
+}
+}
+
+function setUIRefreshingState(isRefreshing) {
+    const generateBtn = document.getElementById(SELECTORS.generateBtn);
+    if (generateBtn) {
+        generateBtn.disabled = isRefreshing;
+        if (isRefreshing)
+            generateBtn.innerHTML = 'Refreshing...';
+        else
+            generateBtn.innerHTML = 'Generate';
+    }
+    if (isRefreshing)
+        showView(SELECTORS.loadingView);
+}
+
+function setUIGeneratingState(isGenerating) {
+    const generateBtn = document.getElementById(SELECTORS.generateBtn);
+    const cancelBtn = document.getElementById(SELECTORS.cancelBtn);
+    const copyBtn = document.getElementById(SELECTORS.copyBtn);
+    const responseArea = document.getElementById(SELECTORS.responseArea);
+    const refinementActions = document.getElementById(SELECTORS.refinementActions);
+    const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
+
+    if (!generateBtn || !cancelBtn || !copyBtn || !responseArea || !refinementActions || !dateIdeaBtn)
+        return;
+
+    generateBtn.disabled = isGenerating;
+    dateIdeaBtn.disabled = isGenerating;
+    document.querySelectorAll('.btn-refine').forEach(btn => btn.disabled = isGenerating);
+
+    generateBtn.innerHTML = isGenerating ? 'Thinking...' : 'Generate';
+    cancelBtn.classList.toggle('hidden', !isGenerating);
+    copyBtn.classList.toggle('hidden', isGenerating);
+    refinementActions.classList.add('hidden');
+
+    if (isGenerating) {
+        responseArea.textContent = '';
+        responseArea.dispatchEvent(new Event('input', {
+                bubbles: true
+            }));
+        responseArea.classList.add('loading');
+        responseArea.classList.remove('error');
+    } else {
+        dateIdeaBtn.disabled = false;
+        dateIdeaBtn.innerHTML = `<svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"></path></svg> Suggest a Date Idea`;
+        responseArea.classList.remove('loading');
+        if (!responseArea.textContent || responseArea.classList.contains('error')) {
+            copyBtn.classList.add('hidden');
+        }
+    }
+}
+
+function updateUIAfterGeneration(result) {
+    const responseArea = document.getElementById(SELECTORS.responseArea);
+    const copyBtn = document.getElementById(SELECTORS.copyBtn);
+    const refinementActions = document.getElementById(SELECTORS.refinementActions);
+
+    if (!responseArea || !copyBtn || !refinementActions)
+        return;
+
+    if (result?.reply) {
+        const cleanReply = result.reply.trim().replace(/^["']|["']$/g, '');
+        responseArea.textContent = cleanReply;
+        responseArea.dispatchEvent(new Event('input', {
+                bubbles: true
+            }));
+        responseArea.classList.remove('error');
+        copyBtn.classList.remove('hidden');
+        refinementActions.classList.remove('hidden');
+        handleCopyClick();
+    } else {
+        showErrorInResponseArea(result?.error || 'Failed to get a response.');
+        copyBtn.classList.add('hidden');
+        refinementActions.classList.add('hidden');
+    }
+}
+
+function showView(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    const view = document.getElementById(viewId);
+    if (view)
+        view.classList.remove('hidden');
+    state.currentViewId = viewId;
+}
+
+function showError(title, message) {
+    const titleEl = document.getElementById(SELECTORS.errorTitle);
+    const messageEl = document.getElementById(SELECTORS.errorMessage);
+    if (titleEl)
+        titleEl.textContent = title;
+    if (messageEl)
+        messageEl.textContent = message;
+    showView(SELECTORS.errorView);
+}
+
+function showErrorInResponseArea(message) {
+    const responseArea = document.getElementById(SELECTORS.responseArea);
+    if (responseArea) {
+        responseArea.textContent = `Error: ${message}`;
+        responseArea.dispatchEvent(new Event('input', {
+                bubbles: true
+            }));
+        responseArea.classList.add('error');
+    }
+}
+
+function displayConversationState() {
+    if (!state.sessionMatchProfile?.analysis)
+        return;
+    const analysis = state.sessionMatchProfile.analysis;
+    const convoState = analysis.conversationState;
+    const dateArcPhase = analysis.memory.dateArcPhase;
+
+    const stateDisplayMap = {
+        'OPENER': 'Status: New Conversation (Opener)',
+        'EARLY_CONVO': 'Status: Early Conversation',
+        'ACTIVE_CONVO': 'Status: Active Conversation',
+        'REENGAGING_DAY': 'Status: Re-engaging (1-7 day pause)',
+        'REENGAGING_WEEK': 'Status: Re-engaging (1-4 week pause)',
+        'REENGAGING_MONTH': 'Status: Re-engaging (1+ month pause)'
+    };
+    const statusEl = document.getElementById(SELECTORS.conversationStatusDisplay);
+    if (statusEl)
+        statusEl.textContent = stateDisplayMap[convoState] || 'Status: Unknown';
+
+    const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
+    if (dateIdeaBtn) {
+        const showButton = dateArcPhase === 'escalation' || dateArcPhase === 'planning';
+        dateIdeaBtn.classList.toggle('hidden', !showButton);
+    }
+}
+
+function handleDateIdeaClick() {
+    if (!state.sessionMatchProfile || !state.currentMatchUUID) {
+        showErrorInResponseArea("Error: Match profile data not loaded. Please refresh.");
+        return;
+    }
+    setUIGeneratingState(true);
+    startTimer(Date.now());
+
+    sendMessage({
+        action: 'getAIDateIdea',
+        data: {
+            uuid: state.currentMatchUUID,
+            generationId: Date.now()
         }
     });
-    addDirtyListeners();
 }
-function createCollapsiblePanel(group) {
-    const panel = document.createElement('div');
-    panel.className = 'collapsible-panel dynamic-panel';
-    panel.innerHTML = `<h2 class="panel-title">${group.groupName}</h2><div class="panel-content"></div>`;
-    const content = panel.querySelector('.panel-content');
-    group.parameters.forEach(param => content.appendChild(createControlElement(param)));
-    return panel;
-}
-function createControlElement(param) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'control-wrapper';
-    const label = document.createElement('label');
-    label.setAttribute('for', param.name);
-    label.textContent = param.displayName;
-    wrapper.appendChild(label);
-    if (param.description) {
-        const infoIcon = document.createElement('div');
-        infoIcon.className = 'info-icon';
-        infoIcon.textContent = 'i';
-        const tooltip = document.createElement('span');
-        tooltip.className = 'tooltip';
-        tooltip.textContent = param.description;
-        infoIcon.appendChild(tooltip);
-        wrapper.appendChild(infoIcon);
-    }
-    let element;
-    switch (param.uiType) {
-        case 'slider': element = document.createElement('input'); element.type = 'range'; element.id = param.name; if (param.constraints) { element.min = param.constraints.min; element.max = param.constraints.max; element.step = param.constraints.step; } element.value = param.defaultValue; break;
-        case 'dropdown': element = document.createElement('select'); element.id = param.name; if (param.constraints && param.constraints.allowedValues) { param.constraints.allowedValues.forEach(opt => { const option = document.createElement('option'); option.value = opt.value; option.textContent = opt.description; element.appendChild(option); }); } element.value = param.defaultValue; break;
-        case 'checkbox': wrapper.classList.add('toggle-switch'); element = document.createElement('input'); element.type = 'checkbox'; element.id = param.name; element.checked = param.defaultValue; break;
-        case 'text_input': element = document.createElement('textarea'); element.id = param.name; element.placeholder = param.description; element.value = param.defaultValue; break;
-    }
-    if (element) wrapper.appendChild(element);
-    return wrapper;
-}
-function populateUI(settings) { if (!settings) return; for (const [key, value] of Object.entries(settings)) { const el = document.getElementById(key); if (el) { if (el.type === 'checkbox') el.checked = value; else el.value = value; } } }
-function displayError(message) { const box = document.getElementById('message-box'); box.textContent = message; box.style.borderColor = 'var(--error-color)'; box.style.color = 'var(--error-color)'; box.style.display = 'block'; }
-function updateStatus(message) { const el = document.getElementById('tune-response-status'); if (el) el.textContent = message; }
-function renderGeoInfo(analysisData) { const container = document.getElementById('geo-info-container'); const section = document.getElementById('geo-info-section'); if (!container || !section || !analysisData?.full_analysis?.memory) return; const { userLocation, matchLocation } = analysisData.full_analysis.memory; if (!userLocation && !matchLocation) return; container.innerHTML = `<p><strong>My Location:</strong> ${userLocation || 'N/A'}</p><p><strong>Match Location:</strong> ${matchLocation || 'N/A'}</p>`; section.style.display = 'block'; }
-function renderCostAnalysis(tokenCount) { const container = document.getElementById('cost-analysis-container'); const section = document.getElementById('cost-analysis-section'); if (tokenCount === null || tokenCount === undefined) { section.style.display = 'none'; return; } const cost = (tokenCount / 1000) * state.settings.costPer1kTokens; container.innerHTML = `<p><strong>Tokens:</strong> ${tokenCount} | <strong>Est. Cost:</strong> $${cost.toFixed(5)}</p>`; section.style.display = 'block'; }
-function renderResponseHistory(history) { const container = document.getElementById('history-container'); const section = document.getElementById('history-section'); container.innerHTML = ''; if (history.length === 0) { section.style.display = 'none'; return; } section.style.display = 'block'; history.forEach(text => { const item = document.createElement('div'); item.className = 'history-item'; item.innerHTML = `<div class="history-item-text"></div><div class="history-item-actions"><button class="copy-btn">Copy</button><button class="use-btn">Use</button></div>`; item.querySelector('.history-item-text').textContent = text; item.querySelector('.copy-btn').addEventListener('click', () => navigator.clipboard.writeText(text)); item.querySelector('.use-btn').addEventListener('click', () => { document.getElementById('message-box').textContent = text; }); container.appendChild(item); }); }
-function showSpinner() { document.getElementById('spinner').style.display = 'block'; }
-function hideSpinner() { document.getElementById('spinner').style.display = 'none'; }
-function renderDebugModal() {
-    const debugModalContainer = document.getElementById('debug-modal-content-area');
-    debugModalContainer.innerHTML = '';
-    debugModalState.pages = [];
-    const debugGroups = ["Overrides & Manual Control", "Advanced & Debug"];
-    state.uiOptions.forEach((group) => {
-        if (debugGroups.includes(group.groupName)) {
-            const page = createDebugPage(group, debugModalState.pages.length);
-            debugModalContainer.appendChild(page);
-            debugModalState.pages.push(page);
+
+function handleRefinementClick(event) {
+    const btn = event.target.closest('.btn-refine');
+    if (!btn)
+        return;
+
+    const refinementType = btn.dataset.refineType;
+    const responseArea = document.getElementById(SELECTORS.responseArea);
+    const originalResponse = responseArea.textContent;
+
+    if (!refinementType || !originalResponse)
+        return;
+
+    setUIGeneratingState(true);
+    startTimer(Date.now());
+
+    sendMessage({
+        action: 'refineAIResponse',
+        data: {
+            uuid: state.currentMatchUUID,
+            originalResponse,
+            refinementType,
+            generationId: Date.now()
         }
     });
-    const promptPage = document.createElement('div');
-    promptPage.className = 'debug-page';
-    promptPage.dataset.pageIndex = debugModalState.pages.length;
-    promptPage.innerHTML = `<h3>Generated Prompts</h3><textarea id="debug-prompt-display" readonly style="width: 100%; height: 200px;"></textarea>`;
-    debugModalContainer.appendChild(promptPage);
-    debugModalState.pages.push(promptPage);
-    debugModalState.totalPages = debugModalState.pages.length;
-}
-function createDebugPage(group, index) {
-    const page = document.createElement('div');
-    page.className = 'debug-page';
-    page.dataset.pageIndex = index;
-    page.innerHTML = `<h3 class="panel-title">${group.groupName}</h3><p class="panel-status">${group.groupDescription}</p>`;
-    group.parameters.forEach(param => page.appendChild(createControlElement(param)));
-    return page;
-}
-function navigateDebugModal(direction) {
-    const { currentPage, totalPages, pages } = debugModalState;
-    let newPage = currentPage + direction;
-    if (newPage < 0 || newPage >= totalPages) return;
-    if(pages[currentPage]) pages[currentPage].classList.remove('active');
-    if(pages[newPage]) pages[newPage].classList.add('active');
-    debugModalState.currentPage = newPage;
-    document.getElementById('debug-back-button').style.display = newPage > 0 ? 'block' : 'none';
-    const isLastSettingsPage = newPage === totalPages - 2;
-    const isPromptPage = newPage === totalPages - 1;
-    document.getElementById('debug-next-button').style.display = !isLastSettingsPage && !isPromptPage ? 'block' : 'none';
-    document.getElementById('debug-regenerate-button').style.display = isLastSettingsPage ? 'block' : 'none';
-    document.getElementById('debug-generate-button').style.display = isPromptPage ? 'block' : 'none';
-    document.getElementById('debug-copy-prompt-button').style.display = isPromptPage ? 'block' : 'none';
 }

@@ -1,4 +1,4 @@
-// content-scraper.js (Corrected with Robust Profile Scraping & Window Attachment)
+// content-scraper.js (Corrected with Robust Profile Scraping)
 
 /**
  * This file contains functions intended to be executed as content scripts
@@ -6,19 +6,18 @@
  * and interacting with the page's DOM.
  */
 
-// --- Functions are attached to the window object to be callable from the extension's popup script ---
-
+// ===================================================================================
 // TINDER SCRAPER & PASTER
+// ===================================================================================
 
 /**
  * Scrapes the active Tinder chat page for all relevant context.
  * This function is injected and executed directly on the page.
  * @returns {object} An object containing all scraped data or an error.
  */
-window.scrapeTinderPage = function() {
+export function scrapeTinderPage() {
     console.log('[Tinder Scraper] Starting scrapeTinderPage function.');
     try {
-        // ... (The entire inner logic of scrapeTinderPage remains exactly the same) ...
         /**
          * Parses a single section within the main profile container. It identifies the
          * section type by its H2 title and applies specific logic for each.
@@ -230,7 +229,7 @@ window.scrapeTinderPage = function() {
     }
 }
 
-window.pasteTextIntoTinderInput = function(textToPaste) {
+export function pasteTextIntoTinderInput(textToPaste) {
     const messageInput = document.querySelector('textarea[placeholder="Type a message"]');
     if (messageInput) {
         messageInput.value = textToPaste;
@@ -244,10 +243,9 @@ window.pasteTextIntoTinderInput = function(textToPaste) {
 // BUMBLE SCRAPER & PASTER
 // ===================================================================================
 
-window.scrapeBumblePage = function() {
+export function scrapeBumblePage() {
     console.log('[Bumble Scraper] Starting scrapeBumblePage function.');
     try {
-        // ... (The entire inner logic of scrapeBumblePage remains exactly the same) ...
         function parsePill(pillElement) {
             const value = pillElement.querySelector('.pill__title')?.textContent.trim() || '';
             const img = pillElement.querySelector('img');
@@ -458,7 +456,7 @@ window.scrapeBumblePage = function() {
     }
 }
 
-window.pasteTextIntoBumbleInput = function(textToPaste) {
+export function pasteTextIntoBumbleInput(textToPaste) {
     const messageInput = document.querySelector('textarea[data-qa-role="message-input"]') || document.querySelector('textarea.textarea__input[placeholder^="Start chatting..."]');
     if (messageInput) {
         messageInput.value = textToPaste;
