@@ -120,8 +120,9 @@ window.scrapeTinderPage = function() {
 
         const isVerified = !!document.querySelector('.chatProfile h1 svg[title="Verified!"]');
 
-        const profileParts = [`Name: ${theirName}, Age: ${theirAge}`];
-        const matchBasics = {};
+        const matchBasics = {
+            Age: theirAge
+        };
         
         // --- ROBUST PROFILE SCRAPING ---
         const profileContainer = document.querySelector('div[class*="Bgc(--color--background-sparks-profile)"]');
@@ -131,14 +132,11 @@ window.scrapeTinderPage = function() {
             sections.forEach(sectionWrapper => {
                 const parsedData = parseProfileSection(sectionWrapper);
                 if (parsedData && parsedData.content) {
-                    profileParts.push(`\n${parsedData.title}:${parsedData.content}`);
                     Object.assign(matchBasics, parsedData.basics);
                 }
             });
         }
         
-        const theirProfile = profileParts.join('\n');
-
         let matchLocation = "Not specified";
         const locationElement = Array.from(document.querySelectorAll('.chatProfile .Typs\\(body-1-regular\\)'))
                                      .find(el => el.textContent.includes('kilometers away') || el.textContent.includes('miles away'));
@@ -206,10 +204,9 @@ window.scrapeTinderPage = function() {
         const result = {
             myName,
             theirName,
-            theirProfile,
+            theirAge,
             isVerified,
             matchLocation,
-            matchDistance: matchLocation,
             matchOrigin: "Not specified",
             matchBasics,
             conversationHistory,
@@ -313,7 +310,7 @@ window.scrapeBumblePage = function() {
         const isDetailedProfilePage = !!document.querySelector('section[data-qa-role="settings-section-about"]');
         const myName = document.querySelector('[data-qa-role="sidebar-profile-name"]')?.textContent.trim() || document.querySelector('.sidebar-profile__name')?.textContent.trim() || "Me";
         
-        let myProfile = null, theirProfile = "Match profile not visible.", theirName = "Match", isVerified = false,
+        let myProfile = null, theirName = "Match", theirAge = "Not specified", aboutMe = "", prompts = [], isVerified = false,
             matchLocation = "Not specified", matchDistance = "Not specified", matchOrigin = "Not specified", 
             matchBasics = {}, conversationHistory = [], lastMessageRelativeTime = null;
 
@@ -325,41 +322,31 @@ window.scrapeBumblePage = function() {
             try {
                 const theirProfilePane = document.querySelector('aside.page__profile.is-expanded .profile');
                 if (theirProfilePane) {
-                    const profileParts = [];
                     const nameEl = theirProfilePane.querySelector('[data-qa-role="profile-name"]') || theirProfilePane.querySelector('.profile__name');
                     const ageEl = theirProfilePane.querySelector('[data-qa-role="profile-age"]') || theirProfilePane.querySelector('.profile__age');
                     theirName = nameEl?.textContent.trim() || "Match";
-                    const age = ageEl?.textContent.replace(',', '').trim();
+                    theirAge = ageEl?.textContent.replace(',', '').trim();
                     isVerified = !!theirProfilePane.querySelector('.profile__verify span[data-qa-icon-name="badge-feature-verification"]');
-                    profileParts.push(`\nName: ${theirName}, Age: ${age}`);
-					
-                    const about = theirProfilePane.querySelector('[data-qa-role="profile-bio"]')?.textContent.trim() || theirProfilePane.querySelector('.profile__about')?.textContent.trim();
-                    if (about) profileParts.push(`About Them:${about}`);
+
+                    aboutMe = theirProfilePane.querySelector('[data-qa-role="profile-bio"]')?.textContent.trim() || theirProfilePane.querySelector('.profile__about')?.textContent.trim();
                     matchLocation = theirProfilePane.querySelector('.location-widget__town')?.textContent.trim() || "Not specified";
                     matchDistance = theirProfilePane.querySelector('.location-widget__distance')?.textContent.trim() || "Not specified";
                     matchOrigin = theirProfilePane.querySelector('.location-widget__pill .pill__title')?.textContent.trim() || "Not specified";
                     const promptNodes = theirProfilePane.querySelectorAll('.profile__section--answer');
-                    const prompts = Array.from(promptNodes).map(s => {
-                        const q = s.querySelector('.profile-answer__title')?.textContent.trim();
-                        const a = s.querySelector('.profile-answer__text')?.textContent.trim();
-                        return (q && a) ? `- ${q}: ${a}` : null;
+                    prompts = Array.from(promptNodes).map(s => {
+                        const question = s.querySelector('.profile-answer__title')?.textContent.trim();
+                        const answer = s.querySelector('.profile-answer__text')?.textContent.trim();
+                        return (question && answer) ? { question, answer } : null;
                     }).filter(Boolean);
 					
-                    if(prompts.length > 0) profileParts.push(`Their Profile Prompts:\n${prompts.join('; ')}`);
                     const pillNodes = theirProfilePane.querySelectorAll('.profile__badges .pill[data-qa-role="pill"]');
-                    const basicsList = [];
                     pillNodes.forEach(pill => {
                         const { key, value } = parsePill(pill);
                         matchBasics[key] = value;
-                        basicsList.push(`${key}: ${value}`);
                     });
-					
-                    if (basicsList.length > 0) profileParts.push(`Their Basics & Interests:\n${basicsList.join('; ')}`);
-                    theirProfile = profileParts.join('\n');
                 }
             } catch (e) {
                 console.error('[Bumble Scraper] Error scraping match profile:', e);
-                theirProfile = `Could not fully parse match profile. Error: ${e.message}`;
             }
 
             if (theirName === "Match") {
@@ -435,7 +422,9 @@ window.scrapeBumblePage = function() {
         const result = { 
             myName, 
             theirName, 
-            theirProfile,
+            theirAge,
+            aboutMe,
+            prompts,
             isVerified,
             matchLocation, 
             matchDistance, 
