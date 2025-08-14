@@ -91,5 +91,12 @@ export const UI_CONFIG = {
         defaultValue: false,
         displayName: 'Debug',
         description: 'If checked, the debug modal will be shown before generating a response.'
+    },
+    useEnhancedNlp: {
+        id: 'use-enhanced-nlp-toggle',
+        type: 'checkbox',
+        defaultValue: false,
+        displayName: 'Use Enhanced NLP',
+        description: 'If checked, a more advanced NLP model will be used (if available).'
     }
 };

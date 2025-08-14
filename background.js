@@ -281,18 +281,31 @@ chrome.runtime.onConnect.addListener((port) => {
                 matchProfile.metadata.matchLocation = scrapedData.matchLocation;
 
                 // ---- NEW: Call backend for NLP analysis ----
-                const settings = await chrome.storage.local.get('nlp_url');
+                const settings = await chrome.storage.local.get(['nlp_url', 'myProfile', 'userLocationChoice', 'useEnhancedNlp']);
                 const nlpUrl = settings.nlp_url || DEFAULTS.nlp_url;
+
+                const requestBody = {
+                    matchId: uuid,
+                    scraped_data: {
+                        myName: scrapedData.myName,
+                        theirName: scrapedData.theirName,
+                        theirProfile: scrapedData.theirProfile,
+                        theirLocationString: scrapedData.matchLocation,
+                        conversationHistory: scrapedData.conversationHistory
+                    },
+                    ui_settings: {
+                        myLocation: settings.userLocationChoice,
+                        myProfile: settings.myProfile,
+                        useEnhancedNlp: settings.useEnhancedNlp || false
+                    }
+                };
 
                 const nlpResponse = await fetch(nlpUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        profile: matchProfile.metadata,
-                        conversation: matchProfile.conversationHistory
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!nlpResponse.ok) {
