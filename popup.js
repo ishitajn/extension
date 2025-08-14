@@ -2,7 +2,7 @@
 import { scrapeBumblePage, pasteTextIntoBumbleInput, scrapeTinderPage, pasteTextIntoTinderInput } from './content-scraper.js';
 import { getToneDescription, getLengthDescription, getEmojiInstruction, getStyleDescription, LINGUISTIC_STYLES } from './uiHelpers.js';
 import { UI_CONFIG, DEFAULTS } from './uiConfig.js';
-import { showNlpModal, hideDebugModal } from './debug-modal.js';
+import { showNlpModal, hideDebugModal, regeneratePrompts } from './debug-modal.js';
 
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-POPUP-${category.toUpperCase()}] ${message}`, data ?? ''),
@@ -406,6 +406,22 @@ function setupEventListeners() {
     populateSelect(UI_CONFIG.linguisticStyleSelect.id, Object.values(UI_CONFIG.linguisticStyleSelect.options).map(s => ({ value: s, text: s.charAt(0).toUpperCase() + s.slice(1) })));
     populateSelect(UI_CONFIG.emojiStrategySelect.id, Object.entries(UI_CONFIG.emojiStrategySelect.options).map(([value, text]) => ({ value, text })));
     populateSelect(SELECTORS.userLocationSelect, Object.entries(USER_LOCATIONS).map(([key, loc]) => ({ value: key, text: loc.name })));
+
+    // Add listeners for dynamic prompt updates in debug modal
+    const controlsToWatch = [
+        'custom-instruction', 'flirty-slider', 'length-slider',
+        'linguistic-style-select', 'emoji-strategy-select', 'temperature-slider',
+        'top-p-slider', 'question-toggle-checkbox', 'strict-goal-toggle',
+        'new-topic-toggle', 'geo-context-toggle'
+    ];
+
+    controlsToWatch.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const eventType = (el.type === 'range' || el.type === 'textarea') ? 'input' : 'change';
+            el.addEventListener(eventType, regeneratePrompts);
+        }
+    });
 }
 
 async function handleLocationChange() {

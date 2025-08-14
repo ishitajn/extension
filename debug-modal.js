@@ -98,81 +98,56 @@ function createCollapsibleJSON(title, dataObject, isEditable = true) {
 // --- View Rendering Logic ---
 function renderView() {
     const contentEl = document.getElementById('debug-modal-content');
-    if (!contentEl)
-        return;
+    if (!contentEl) return;
 
     let html = '';
-    switch (currentView) {
-    case 'analysis':
-        html = renderAnalysisView();
-        break;
-    case 'sexual':
-        html = renderSexualAnalysisView();
-        break;
-    case 'date':
-        html = renderDateAnalysisView();
-        break;
-    case 'geo':
-        html = renderGeoContextView();
-        break;
-    case 'memory':
-        html = renderMemoryView();
-        break;
-    case 'context':
-        html = renderContextView();
-        break;
-    case 'suggestions':
-        html = renderSuggestionsView();
-        break;
-    case 'final':
-        html = renderFinalPayloadView();
-        break;
+    try {
+        switch (currentView) {
+            case 'analysis': html = renderAnalysisView(); break;
+            case 'sexual': html = renderSexualAnalysisView(); break;
+            case 'date': html = renderDateAnalysisView(); break;
+            case 'geo': html = renderGeoContextView(); break;
+            case 'memory': html = renderMemoryView(); break;
+            case 'context': html = renderContextView(); break;
+            case 'suggestions': html = renderSuggestionsView(); break;
+            case 'final': html = renderFinalPayloadView(); break;
+            default: html = '<p>Unknown view state.</p>';
+        }
+    } catch (error) {
+        console.error("Error rendering debug modal view:", currentView, error);
+        html = `<p class="error-message">Error rendering view: ${error.message}. Please check the console.</p>`;
     }
     contentEl.innerHTML = html;
     attachEventListeners();
 }
 
 function renderAnalysisView() {
-    const { conversationAnalysis } = modalState;
-    const { lastMessageAnalysis } = conversationAnalysis;
-    const valenceLabels = {
-        '-1': 'Very Negative',
-        '-0.5': 'Negative',
-        '-0.1': 'Neutral',
-        '0.5': 'Positive',
-        '1': 'Very Positive'
-    };
-    const arousalLabels = {
-        '-1': 'Bored/Calm',
-        '-0.5': 'Low Energy',
-        '-0.1': 'Neutral',
-        '0.5': 'Excited',
-        '1': 'Agitated'
-    };
+    const conversationAnalysis = modalState.conversationAnalysis || {};
+    const lastMessageAnalysis = conversationAnalysis.lastMessageAnalysis || {};
+    const valenceLabels = { '-1': 'Very Negative', '-0.5': 'Negative', '-0.1': 'Neutral', '0.5': 'Positive', '1': 'Very Positive' };
+    const arousalLabels = { '-1': 'Bored/Calm', '-0.5': 'Low Energy', '-0.1': 'Neutral', '0.5': 'Excited', '1': 'Agitated' };
 
     return `
         <h3>View 1: Conversation Analysis</h3>
         <table class="payload-table">
             <tr><td>Conversation State</td><td>${createSelect('analysis-state', 'conversationAnalysis.conversationState', CONVERSATION_STATES, conversationAnalysis.conversationState)}</td></tr>
             <tr><td>Suppress Greeting?</td><td>${createCheckbox('analysis-suppressGreeting', 'conversationAnalysis.suppressGreeting', conversationAnalysis.suppressGreeting)}</td></tr>
-            <tr><td colspan="2" style="text-align:center; background:#333;"><strong>Last Message Subtext</strong></td></tr>
+            <tr><td colspan="2" class="table-section-header"><strong>Last Message Subtext</strong></td></tr>
             <tr><td>Is Direct Question?</td><td>${createCheckbox('subtext-isDirectQuestion', 'conversationAnalysis.lastMessageAnalysis.isDirectQuestion', lastMessageAnalysis.isDirectQuestion)}</td></tr>
             <tr><td>Is Low Effort?</td><td>${createCheckbox('subtext-isLowEffort', 'conversationAnalysis.lastMessageAnalysis.isLowEffort', lastMessageAnalysis.isLowEffort)}</td></tr>
             <tr><td>Is Sarcastic?</td><td>${createCheckbox('subtext-isSarcastic', 'conversationAnalysis.lastMessageAnalysis.isSarcastic', lastMessageAnalysis.isSarcastic)}</td></tr>
             <tr><td>Is Ambiguous?</td><td>${createCheckbox('subtext-isAmbiguous', 'conversationAnalysis.lastMessageAnalysis.isAmbiguous', lastMessageAnalysis.isAmbiguous)}</td></tr>
             <tr><td>Is Vulnerable?</td><td>${createCheckbox('subtext-isVulnerable', 'conversationAnalysis.lastMessageAnalysis.isVulnerable', lastMessageAnalysis.isVulnerable)}</td></tr>
-            <tr><td>Valence</td><td>${createSlider('subtext-valence', 'conversationAnalysis.lastMessageAnalysis.valence', lastMessageAnalysis.valence, -1, 1, 0.1, valenceLabels)}</td></tr>
-            <tr><td>Arousal</td><td>${createSlider('subtext-arousal', 'conversationAnalysis.lastMessageAnalysis.arousal', lastMessageAnalysis.arousal, -1, 1, 0.1, arousalLabels)}</td></tr>
+            <tr><td>Valence</td><td>${createSlider('subtext-valence', 'conversationAnalysis.lastMessageAnalysis.valence', lastMessageAnalysis.valence ?? 0, -1, 1, 0.1, valenceLabels)}</td></tr>
+            <tr><td>Arousal</td><td>${createSlider('subtext-arousal', 'conversationAnalysis.lastMessageAnalysis.arousal', lastMessageAnalysis.arousal ?? 0, -1, 1, 0.1, arousalLabels)}</td></tr>
             <tr><td>Intents</td><td>${createMultiSelect('subtext-intents', 'conversationAnalysis.lastMessageAnalysis.intents', INTENT_OPTIONS, lastMessageAnalysis.intents)}</td></tr>
         </table>
-        ${createCollapsibleJSON('View/Edit Raw Analysis Object', conversationAnalysis)}
+        ${createCollapsibleJSON('View/Edit Raw Analysis Object', modalState.conversationAnalysis)}
     `;
 }
 
 function renderSexualAnalysisView() {
-    const { sexualAnalysis } = modalState;
-    if (!sexualAnalysis) return '<h3>View 2: Sexual Analysis</h3><p>Not available.</p>';
-
+    const sexualAnalysis = modalState.sexualAnalysis || {};
     const tensionLabels = { 0: 'None', 0.5: 'Subtle', 0.8: 'High', 1: 'Intense' };
     const confidenceLabels = { 0: 'None', 0.5: 'Maybe', 0.8: 'Likely', 1: 'Certain' };
     const paceOptions = ['slow', 'moderate', 'fast'];
@@ -183,22 +158,21 @@ function renderSexualAnalysisView() {
     return `
         <h3>View 2: Sexual Analysis</h3>
         <table class="payload-table">
-            <tr><td>Sexual Tension</td><td>${createSlider('sexual-tension', 'sexualAnalysis.sexualTensionScore', sexualAnalysis.sexualTensionScore, 0, 1, 0.1, tensionLabels)}</td></tr>
-            <tr><td>Intent Confidence</td><td>${createSlider('sexual-confidence', 'sexualAnalysis.sexualIntentConfidence', sexualAnalysis.sexualIntentConfidence, 0, 1, 0.1, confidenceLabels)}</td></tr>
+            <tr><td>Sexual Tension</td><td>${createSlider('sexual-tension', 'sexualAnalysis.sexualTensionScore', sexualAnalysis.sexualTensionScore ?? 0, 0, 1, 0.1, tensionLabels)}</td></tr>
+            <tr><td>Intent Confidence</td><td>${createSlider('sexual-confidence', 'sexualAnalysis.sexualIntentConfidence', sexualAnalysis.sexualIntentConfidence ?? 0, 0, 1, 0.1, confidenceLabels)}</td></tr>
             <tr><td>Escalation Pace</td><td>${createSelect('sexual-pace', 'sexualAnalysis.escalationPace', paceOptions, sexualAnalysis.escalationPace)}</td></tr>
-            <tr><td>Dominant/Submissive</td><td>${createSlider('sexual-domsub', 'sexualAnalysis.dominantSubmissiveScore', sexualAnalysis.dominantSubmissiveScore, -1, 1, 0.1, { '-1': 'Submissive', 0: 'Neutral', 1: 'Dominant' })}</td></tr>
+            <tr><td>Dominant/Submissive</td><td>${createSlider('sexual-domsub', 'sexualAnalysis.dominantSubmissiveScore', sexualAnalysis.dominantSubmissiveScore ?? 0, -1, 1, 0.1, { '-1': 'Submissive', 0: 'Neutral', 1: 'Dominant' })}</td></tr>
             <tr><td>Communication Style</td><td>${createSelect('sexual-style', 'sexualAnalysis.sexualCommunicationStyle', styleOptions, sexualAnalysis.sexualCommunicationStyle)}</td></tr>
             <tr><td>Response Suggestion</td><td>${createSelect('sexual-suggestion', 'sexualAnalysis.sexualResponseSuggestion', suggestionOptions, sexualAnalysis.sexualResponseSuggestion)}</td></tr>
             <tr><td>Sexual Archetype</td><td>${createSelect('sexual-archetype', 'sexualAnalysis.sexualArchetype', archetypeOptions, sexualAnalysis.sexualArchetype)}</td></tr>
         </table>
-        ${createCollapsibleJSON('View/Edit Raw Sexual Analysis', sexualAnalysis)}
+        ${createCollapsibleJSON('View/Edit Raw Sexual Analysis', modalState.sexualAnalysis)}
     `;
 }
 
 function renderDateAnalysisView() {
-    const { dateAnalysis } = modalState;
-    if (!dateAnalysis) return '<h3>View 3: Date Analysis</h3><p>Not available.</p>';
-
+    const dateAnalysis = modalState.dateAnalysis || {};
+    const dateLogistics = dateAnalysis.dateLogistics || {};
     const commitmentOptions = ['tentative', 'confirmed', 'imminent'];
     const dateTypeOptions = ['coffee_date', 'dinner_and_drinks', 'casual_hangout'];
     const vibeOptions = ['romantic', 'adventurous', 'intellectual'];
@@ -209,41 +183,42 @@ function renderDateAnalysisView() {
         <table class="payload-table">
             <tr><td>Date Planned?</td><td>${createCheckbox('date-isPlanned', 'dateAnalysis.isDatePlanned', dateAnalysis.isDatePlanned)}</td></tr>
             <tr><td>Commitment Level</td><td>${createSelect('date-commitment', 'dateAnalysis.dateCommitmentLevel', commitmentOptions, dateAnalysis.dateCommitmentLevel)}</td></tr>
-            <tr><td>Venue</td><td>${createInput('date-venue', 'dateAnalysis.dateLogistics.venue', dateAnalysis.dateLogistics.venue)}</td></tr>
-            <tr><td>Time (ISO)</td><td>${createInput('date-time', 'dateAnalysis.dateLogistics.time', dateAnalysis.dateLogistics.time)}</td></tr>
+            <tr><td>Venue</td><td>${createInput('date-venue', 'dateAnalysis.dateLogistics.venue', dateLogistics.venue)}</td></tr>
+            <tr><td>Time (ISO)</td><td>${createInput('date-time', 'dateAnalysis.dateLogistics.time', dateLogistics.time)}</td></tr>
             <tr><td>Date Type</td><td>${createSelect('date-type', 'dateAnalysis.dateType', dateTypeOptions, dateAnalysis.dateType)}</td></tr>
             <tr><td>Date Vibe</td><td>${createSelect('date-vibe', 'dateAnalysis.dateVibe', vibeOptions, dateAnalysis.dateVibe)}</td></tr>
             <tr><td>Is Virtual?</td><td>${createCheckbox('date-isVirtual', 'dateAnalysis.isVirtual', dateAnalysis.isVirtual)}</td></tr>
             <tr><td>Who Initiated?</td><td>${createSelect('date-initiator', 'dateAnalysis.whoInitiated', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
         </table>
-        ${createCollapsibleJSON('View/Edit Raw Date Analysis', dateAnalysis)}
+        ${createCollapsibleJSON('View/Edit Raw Date Analysis', modalState.dateAnalysis)}
     `;
 }
 
 function renderGeoContextView() {
-    const { geoContext } = modalState;
-    if (!geoContext) return '<h3>View 4: Geo Context</h3><p>Not available.</p>';
+    const geoContext = modalState.geoContextData || {};
+    const userLocation = geoContext.userLocation || {};
+    const matchLocation = geoContext.matchLocation || {};
 
     return `
         <h3>View 4: Geo Context</h3>
         <table class="payload-table">
-            <tr><td colspan="2" style="text-align:center; background:#333;"><strong>User Location</strong></td></tr>
-            <tr><td>Latitude</td><td>${createInput('geo-user-lat', 'geoContext.userLocation.lat', geoContext.userLocation.lat, 'number')}</td></tr>
-            <tr><td>Longitude</td><td>${createInput('geo-user-lon', 'geoContext.userLocation.lon', geoContext.userLocation.lon, 'number')}</td></tr>
-            <tr><td>Timezone</td><td>${createInput('geo-user-tz', 'geoContext.userLocation.timeZone', geoContext.userLocation.timeZone)}</td></tr>
-            <tr><td colspan="2" style="text-align:center; background:#333;"><strong>Match Location</strong></td></tr>
-            <tr><td>Latitude</td><td>${createInput('geo-match-lat', 'geoContext.matchLocation.lat', geoContext.matchLocation.lat, 'number')}</td></tr>
-            <tr><td>Longitude</td><td>${createInput('geo-match-lon', 'geoContext.matchLocation.lon', geoContext.matchLocation.lon, 'number')}</td></tr>
-            <tr><td>Timezone</td><td>${createInput('geo-match-tz', 'geoContext.matchLocation.timeZone', geoContext.matchLocation.timeZone)}</td></tr>
+            <tr><td colspan="2" class="table-section-header"><strong>User Location</strong></td></tr>
+            <tr><td>Latitude</td><td>${createInput('geo-user-lat', 'geoContextData.userLocation.lat', userLocation.lat, 'number')}</td></tr>
+            <tr><td>Longitude</td><td>${createInput('geo-user-lon', 'geoContextData.userLocation.lon', userLocation.lon, 'number')}</td></tr>
+            <tr><td>Timezone</td><td>${createInput('geo-user-tz', 'geoContextData.userLocation.timeZone', userLocation.timeZone)}</td></tr>
+            <tr><td colspan="2" class="table-section-header"><strong>Match Location</strong></td></tr>
+            <tr><td>Latitude</td><td>${createInput('geo-match-lat', 'geoContextData.matchLocation.lat', matchLocation.lat, 'number')}</td></tr>
+            <tr><td>Longitude</td><td>${createInput('geo-match-lon', 'geoContextData.matchLocation.lon', matchLocation.lon, 'number')}</td></tr>
+            <tr><td>Timezone</td><td>${createInput('geo-match-tz', 'geoContextData.matchLocation.timeZone', matchLocation.timeZone)}</td></tr>
         </table>
-        ${createCollapsibleJSON('View/Edit Raw Geo Context', geoContext)}
+        ${createCollapsibleJSON('View/Edit Raw Geo Context', modalState.geoContextData)}
     `;
 }
 
 function renderMemoryView() {
-    const { memory } = modalState.conversationAnalysis;
+    const memory = modalState.conversationAnalysis?.memory || {};
     return `
-        <h3>View 2: Match Memory</h3>
+        <h3>View 5: Match Memory</h3>
         <table class="payload-table">
             <tr><td>Date Arc Phase</td><td>${createSelect('memory-dateArcPhase', 'conversationAnalysis.memory.dateArcPhase', DATE_ARC_PHASES, memory.dateArcPhase)}</td></tr>
             <tr><td>Inside Jokes (one per line)</td><td>${createTextarea('memory-insideJokes', 'conversationAnalysis.memory.insideJokes', (memory.insideJokes || []).join('\n'))}</td></tr>
@@ -255,7 +230,7 @@ function renderMemoryView() {
 }
 
 function renderContextView() {
-    const { conversationHistory } = modalState;
+    const conversationHistory = modalState.conversationHistory || [];
     const historyHtml = conversationHistory.map((msg, index) => `
         <div class="message-card" data-index="${index}">
             <div class="message-card-header">
@@ -266,13 +241,13 @@ function renderContextView() {
                 <button class="icon-btn remove-msg-btn" title="Remove Message">&times;</button>
             </div>
             <div class="message-card-content">
-                <textarea class="modal-input" data-path="conversationHistory.${index}.content">${msg.content}</textarea>
+                <textarea class="modal-input" data-path="conversationHistory.${index}.content">${msg.content || ''}</textarea>
             </div>
         </div>
     `).join('');
 
     return `
-        <h3>View 3: Profiles & History</h3>
+        <h3>View 6: Profiles & History</h3>
         <table class="payload-table">
             <tr><td>My Name</td><td>${createInput('context-myName', 'myName', modalState.myName)}</td></tr>
             <tr><td>Their Name</td><td>${createInput('context-theirName', 'theirName', modalState.theirName)}</td></tr>
@@ -283,14 +258,11 @@ function renderContextView() {
         <h4>Conversation History</h4>
         <div class="messages-container">${historyHtml}</div>
         <button id="add-message-btn" class="btn btn-secondary add-message-btn">Add Message</button>
-        ${createCollapsibleJSON('View/Edit Raw GeoContext Data', modalState.geoContextData)}
     `;
 }
 
 function renderSuggestionsView() {
-    const { responseSuggestions } = modalState;
-    if (!responseSuggestions) return '<h3>View 7: Response Suggestions</h3><p>Not available.</p>';
-
+    const responseSuggestions = modalState.responseSuggestions || {};
     const styleOptions = LINGUISTIC_STYLES;
     const emojiOptions = ['auto', 'friendly', 'playful', 'bold', 'no_emoji'];
     const nextActionOptions = ['ask_for_date', 'build_rapport', 'clarify_intent', 'escalate_sexually'];
@@ -306,49 +278,110 @@ function renderSuggestionsView() {
             <tr><td>Suggested Next Action</td><td>${createSelect('suggestions-nextAction', 'responseSuggestions.suggestedNextAction', nextActionOptions, responseSuggestions.suggestedNextAction)}</td></tr>
             <tr><td>Key Talking Points (one per line)</td><td>${createTextarea('suggestions-talkingPoints', 'responseSuggestions.keyTalkingPoints', (responseSuggestions.keyTalkingPoints || []).join('\n'))}</td></tr>
         </table>
-        ${createCollapsibleJSON('View/Edit Raw Suggestions', responseSuggestions)}
+        ${createCollapsibleJSON('View/Edit Raw Suggestions', modalState.responseSuggestions)}
     `;
 }
 
 function renderFinalPayloadView() {
-    const { systemMessage, userMessage } = generatePrompts(modalState);
-    const finalPayload = {
-        messages: [{
-                role: "system",
-                content: systemMessage
-            }, {
-                role: "user",
-                content: userMessage
-            }
-        ],
-        temperature: modalState.taskInstructions.temperature,
-        top_p: modalState.taskInstructions.top_p
-    };
-    modalState.finalPayload = finalPayload;
-
+    // This view is now mostly a container. The content is filled by regeneratePrompts.
     return `
-        <h3>View 4: Final Payload Review</h3>
+        <h3>View 8: Final Payload Review</h3>
         <p>This is the exact data that will be sent to the AI. You can make final edits to the messages below.</p>
-        <div class="messages-container">
-            <div class="message-card">
-                <div class="message-card-header"><strong>System Message</strong></div>
-                <div class="message-card-content">${createTextarea('final-system', 'finalPayload.messages.0.content', systemMessage)}</div>
-            </div>
-            <div class="message-card">
-                <div class="message-card-header"><strong>User Message</strong></div>
-                <div class="message-card-content">${createTextarea('final-user', 'finalPayload.messages.1.content', userMessage)}</div>
-            </div>
+        <div id="final-payload-prompts-container">
+            <p>Generating prompts...</p>
         </div>
-        ${createCollapsibleJSON('View/Edit Raw Final Payload', finalPayload, false)}
     `;
+}
+
+// --- DYNAMIC PROMPT GENERATION ---
+export function regeneratePrompts() {
+    // Ensure modal is visible before doing anything
+    if (!document.getElementById('debug-modal-overlay') || document.getElementById('debug-modal-overlay').classList.contains('hidden')) {
+        return;
+    }
+
+    // This function now rebuilds the necessary data from the main UI and the modal state
+    const liveTaskInstructions = {
+        goal: document.getElementById('custom-instruction').value.trim(),
+        flirtyValue: Number(document.getElementById('flirty-slider').value),
+        lengthValue: Number(document.getElementById('length-slider').value),
+        linguisticStyle: document.getElementById('linguistic-style-select').value,
+        emojiStrategy: document.getElementById('emoji-strategy-select').value,
+        temperature: parseFloat(document.getElementById('temperature-slider').value),
+        top_p: parseFloat(document.getElementById('top-p-slider').value),
+        endWithQuestion: document.getElementById('question-toggle-checkbox').checked,
+        strictGoalOverride: document.getElementById('strict-goal-toggle').checked,
+        forceNewTopic: document.getElementById('new-topic-toggle').checked,
+    };
+
+    // We merge the live UI settings with the (potentially modified) data in the modal state
+    const dataForPrompts = {
+        ...modalState,
+        taskInstructions: {
+            ...modalState.taskInstructions, // Start with base from modal
+            ...liveTaskInstructions // Override with live values from main UI
+        },
+        forceIncludeGeoContext: document.getElementById('geo-context-toggle').checked,
+    };
+
+    let systemMessage, userMessage;
+    try {
+        const prompts = generatePrompts(dataForPrompts);
+        systemMessage = prompts.systemMessage;
+        userMessage = prompts.userMessage;
+    } catch (e) {
+        // If prompt generation fails, show the error in the final payload view
+        if (currentView === 'final') {
+            const container = document.getElementById('final-payload-prompts-container');
+            if (container) container.innerHTML = `<p class="error-message">Error generating prompts: ${e.message}</p>`;
+        }
+        return;
+    }
+
+    const finalPayload = {
+        messages: [{ role: "system", content: systemMessage }, { role: "user", content: userMessage }],
+        temperature: dataForPrompts.taskInstructions.temperature,
+        top_p: dataForPrompts.taskInstructions.top_p
+    };
+    modalState.finalPayload = finalPayload; // Update modal state with the latest payload
+
+    // If the final view is active, update its content to show the new prompts.
+    if (currentView === 'final') {
+        const container = document.getElementById('final-payload-prompts-container');
+        if (container) {
+            container.innerHTML = `
+                <div class="messages-container">
+                    <div class="message-card">
+                        <div class="message-card-header"><strong>System Message</strong></div>
+                        <div class="message-card-content">${createTextarea('final-system', 'finalPayload.messages.0.content', systemMessage)}</div>
+                    </div>
+                    <div class="message-card">
+                        <div class="message-card-header"><strong>User Message</strong></div>
+                        <div class="message-card-content">${createTextarea('final-user', 'finalPayload.messages.1.content', userMessage)}</div>
+                    </div>
+                </div>
+                ${createCollapsibleJSON('View/Edit Raw Final Payload', finalPayload, false)}
+            `;
+            // Re-attach listeners for the newly created elements inside the container
+            container.querySelectorAll('.copy-json-btn, .raw-json-area[contenteditable="true"], textarea').forEach(el => {
+                 if (el.matches('.copy-json-btn')) {
+                    el.addEventListener('click', handleCopyJsonClick);
+                } else if (el.matches('.raw-json-area')) {
+                    el.addEventListener('blur', handleJsonBlur);
+                    el.addEventListener('focus', handleJsonFocus);
+                } else {
+                    el.addEventListener('input', updateStateFromUI);
+                }
+            });
+        }
+    }
 }
 
 // --- State Management & Event Handling ---
 function updateStateFromUI(e) {
     const el = e.target;
     const path = el.dataset.path;
-    if (!path)
-        return;
+    if (!path) return;
 
     let value;
     if (el.type === 'checkbox') {
@@ -368,137 +401,93 @@ function updateStateFromUI(e) {
     setNestedValue(modalState, path, value);
 
     const objectKey = path.split('.')[0];
-    if (objectKey === 'conversationAnalysis') {
-        updateRawJsonDisplay('analysis');
-        if (path.includes('memory')) {
-            updateRawJsonDisplay('memory');
-        }
-    } else if (objectKey === 'finalPayload') {
-        updateRawJsonDisplay('final');
+    if (['conversationAnalysis', 'sexualAnalysis', 'dateAnalysis', 'geoContextData', 'responseSuggestions'].includes(objectKey)) {
+        updateRawJsonDisplay(objectKey);
     }
+
+    regeneratePrompts();
 }
 
 function updateRawJsonDisplay(key) {
     const pre = document.querySelector(`.raw-json-area[data-object-key="${key}"]`);
-    if (!pre)
-        return;
-
-    let objectToDisplay;
-    switch (key) {
-    case 'analysis':
-        objectToDisplay = modalState.conversationAnalysis;
-        break;
-    case 'sexual':
-        objectToDisplay = modalState.sexualAnalysis;
-        break;
-    case 'date':
-        objectToDisplay = modalState.dateAnalysis;
-        break;
-    case 'geo':
-        objectToDisplay = modalState.geoContext;
-        break;
-    case 'memory':
-        objectToDisplay = modalState.conversationAnalysis.memory;
-        break;
-    case 'suggestions':
-        objectToDisplay = modalState.responseSuggestions;
-        break;
-    case 'final':
-        objectToDisplay = modalState.finalPayload;
-        break;
-    default:
-        return;
-    }
+    if (!pre) return;
+    const objectToDisplay = key === 'geoContextData' ? modalState.geoContextData : modalState[key];
     pre.textContent = JSON.stringify(objectToDisplay, null, 2);
 }
+
+// --- Event Handlers (extracted for reuse) ---
+function handleCopyJsonClick(e) {
+    const button = e.currentTarget;
+    const pre = button.closest('.collapsible-json-container')?.querySelector('pre.raw-json-area');
+    if (pre) {
+        navigator.clipboard.writeText(pre.textContent);
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '✅';
+        button.disabled = true;
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+            button.disabled = false;
+        }, 1500);
+    }
+}
+
+function handleJsonBlur(e) {
+    try {
+        const newJson = JSON.parse(e.target.textContent);
+        const key = e.target.dataset.objectKey;
+        if (key === 'memory') {
+            modalState.conversationAnalysis.memory = newJson;
+        } else {
+            modalState[key] = newJson;
+        }
+        renderView(); // Re-render the whole view to reflect deep changes
+        regeneratePrompts(); // Regenerate prompts after update
+    } catch (err) {
+        console.error("Invalid JSON entered:", err);
+        e.target.style.border = '1px solid red';
+    }
+}
+
+function handleJsonFocus(e) {
+    e.target.style.border = '';
+}
+
 
 function attachEventListeners() {
     const contentEl = document.getElementById('debug-modal-content');
     contentEl.addEventListener('input', updateStateFromUI);
     contentEl.addEventListener('change', updateStateFromUI);
 
-    // FIX: Attach event listener for sliders programmatically
     contentEl.querySelectorAll('input[type="range"][data-label-map]').forEach(slider => {
         slider.addEventListener('input', (e) => {
-            const targetSlider = e.currentTarget;
-            const valueDisplay = document.getElementById(`${targetSlider.id}-value`);
+            const valueDisplay = document.getElementById(`${e.currentTarget.id}-value`);
             if (valueDisplay) {
-                const labelMap = JSON.parse(targetSlider.dataset.labelMap);
-                const currentValue = targetSlider.value;
-                const getLabel = (val) => {
-                    const numVal = parseFloat(val);
-                    for (const [limit, label] of Object.entries(labelMap)) {
-                        if (numVal >= parseFloat(limit)) return label;
-                    }
-                    return Object.values(labelMap)[0];
-                };
+                const labelMap = JSON.parse(e.currentTarget.dataset.labelMap);
+                const currentValue = e.currentTarget.value;
+                const getLabel = (val) => Object.values(labelMap)[Object.keys(labelMap).reverse().findIndex(k => parseFloat(val) >= parseFloat(k))] || Object.values(labelMap)[0];
                 valueDisplay.textContent = `${currentValue} (${getLabel(currentValue)})`;
             }
         });
     });
 
-    document.querySelectorAll('.copy-json-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const button = e.currentTarget;
-            const container = button.closest('.collapsible-json-container');
-            if (!container)
-                return;
-
-            const pre = container.querySelector('pre.raw-json-area');
-            if (!pre)
-                return;
-
-            const textToCopy = pre.textContent.replace(/\\n/g, '\n');
-
-            navigator.clipboard.writeText(textToCopy);
-
-            const originalIcon = button.innerHTML;
-            button.innerHTML = '✅';
-            button.disabled = true;
-            setTimeout(() => {
-                button.innerHTML = originalIcon;
-                button.disabled = false;
-            }, 1500);
-        });
-    });
-
-    document.querySelectorAll('.raw-json-area[contenteditable="true"]').forEach(area => {
-        area.addEventListener('blur', e => {
-            try {
-                const newJson = JSON.parse(e.target.textContent);
-                const key = e.target.dataset.objectKey;
-                if (key === 'memory') {
-                    modalState.conversationAnalysis.memory = newJson;
-                } else if (key === 'analysis') {
-                    modalState.conversationAnalysis = newJson;
-                } else {
-                    modalState[key] = newJson;
-                }
-                renderView();
-            } catch (err) {
-                console.error("Invalid JSON entered:", err);
-                e.target.style.border = '1px solid red';
-            }
-        });
-        area.addEventListener('focus', e => {
-            e.target.style.border = '';
-        });
+    contentEl.querySelectorAll('.copy-json-btn').forEach(btn => btn.addEventListener('click', handleCopyJsonClick));
+    contentEl.querySelectorAll('.raw-json-area[contenteditable="true"]').forEach(area => {
+        area.addEventListener('blur', handleJsonBlur);
+        area.addEventListener('focus', handleJsonFocus);
     });
 
     if (currentView === 'context') {
         document.getElementById('add-message-btn')?.addEventListener('click', () => {
-            modalState.conversationHistory.push({
-                role: 'user',
-                content: '',
-                date: new Date().toISOString().split('T')[0]
-            });
+            modalState.conversationHistory.push({ role: 'user', content: '', date: new Date().toISOString().split('T')[0] });
             renderView();
+            regeneratePrompts();
         });
         document.querySelectorAll('.remove-msg-btn').forEach(btn => {
             btn.addEventListener('click', e => {
                 const index = e.currentTarget.closest('.message-card').dataset.index;
                 modalState.conversationHistory.splice(index, 1);
                 renderView();
+                regeneratePrompts();
             });
         });
     }
@@ -508,25 +497,23 @@ function attachEventListeners() {
 function handleNav(direction) {
     const currentIndex = VIEWS.indexOf(currentView);
     let nextIndex = currentIndex + direction;
-    if (nextIndex < 0 || nextIndex >= VIEWS.length)
-        return;
+    if (nextIndex < 0 || nextIndex >= VIEWS.length) return;
     currentView = VIEWS[nextIndex];
-    renderView();
+    renderView(); // This will re-render and re-attach listeners
     updateNavButtons();
+    // If we navigate to the final view, ensure prompts are up-to-date
+    if (currentView === 'final') {
+        regeneratePrompts();
+    }
 }
 
 function updateNavButtons() {
     const currentIndex = VIEWS.indexOf(currentView);
     document.getElementById('modal-back-btn').disabled = currentIndex === 0;
-
     const primaryBtn = document.getElementById('modal-primary-action-btn');
     primaryBtn.textContent = (currentIndex === VIEWS.length - 1) ? 'Send to AI' : 'Next';
 }
 
-/**
- * @param {object} initialData
- * @param {object} cbs
- */
 export function showNlpModal(initialData, cbs) {
     callbacks = cbs;
     modalState = JSON.parse(JSON.stringify(initialData));
@@ -563,6 +550,7 @@ export function showNlpModal(initialData, cbs) {
 
     renderView();
     updateNavButtons();
+    regeneratePrompts(); // Initial prompt generation
 }
 
 export function hideDebugModal() {
