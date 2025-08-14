@@ -17,7 +17,7 @@ const debugModalState = {
 
 // --- Settings & Managers ---
 const SETTINGS_DEFAULTS = {
-    nlpUrl: 'http://localhost:8000',
+    nlpUrl: 'http://10.0.0.24:8080',
     apiUrl: 'http://localhost:8080/v1/chat/completions',
     modelName: 'llama3:latest',
     apiKey: '',
