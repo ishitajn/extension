@@ -1,13 +1,9 @@
 // --- On-Install Logic ---
-// REMOVED: The onInstalled logic was flawed as it relied on a potentially
-// unconfigured user setting. The logic to fetch options if they are missing
-// is now handled correctly in the popup script.
 chrome.runtime.onInstalled.addListener(() => {
     console.log('[Wingman AI] Extension installed/updated. Popup will handle option fetching on first open.');
 });
 
 // --- Tab Update Listener for Observer Injection ---
-// This ensures the observer is injected only once when the tab is updated to a supported URL.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url && (tab.url.includes('tinder.com') || tab.url.includes('bumble.com'))) {
         chrome.scripting.executeScript({

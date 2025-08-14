@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "AI Dating Scraper Assistant",
-    "version": "1.0",
+    "name": "Wingman AI",
+    "version": "2.0",
     "description": "Scrapes dating app conversations, analyzes them, and helps generate responses.",
     "permissions": [
         "activeTab",
@@ -15,7 +15,7 @@
     ],
     "action": {
         "default_popup": "popup.html",
-        "default_title": "AI Dating Assistant"
+        "default_title": "Wingman AI"
     },
     "icons": {
         "16": "icons/icon16.png",

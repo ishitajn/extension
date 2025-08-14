@@ -6,13 +6,12 @@ const debugModalState = { isRendered: false, currentPage: 0, totalPages: 0, page
 document.addEventListener('DOMContentLoaded', async () => {
     state.settings = await settingsManager.get();
     await loadUiOptions();
-    if (state.uiOptions.length === 0) return; // Stop if options failed to load
+    if (state.uiOptions.length === 0) return;
     renderDynamicUI(state.uiOptions);
     initEventListeners();
     initSettingsPanel(state.settings);
     const history = await historyManager.get();
     renderResponseHistory(history);
-
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab && (tab.url.includes('tinder.com') || tab.url.includes('bumble.com'))) {
         showSpinner();
@@ -163,9 +162,10 @@ async function handleModalRegenerateClick() {
     const debugContainer = document.getElementById('debug-modal-content-area');
     const inputs = debugContainer.querySelectorAll('select, input[type="range"], input[type="checkbox"]');
     inputs.forEach(input => { settings[input.id] = input.type === 'checkbox' ? input.checked : input.value; });
+    const allSettings = { ...getFullUiSettings(), ...settings };
     showSpinner();
     try {
-        const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: settings };
+        const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: allSettings };
         const response = await fetch(`${state.settings.nlpUrl}/api/v1/regenerate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) throw new Error(`API Error: ${response.status}`);
         const newPrompts = await response.json();
@@ -178,6 +178,7 @@ async function handleModalRegenerateClick() {
 }
 async function handleGenerateClick() { if (!state.prompts) { displayError("No prompts available."); return; } const generateBtn = document.getElementById('generate-button'); generateBtn.disabled = true; showSpinner(); chrome.runtime.sendMessage({ type: 'GENERATE_TEXT', payload: { prompts: state.prompts, settings: state.settings } }); document.getElementById('debug-modal').style.display = 'none'; document.getElementById('debug-checkbox').checked = false; }
 function getTuneResponseSettings() { const settings = {}; const tuneContainer = document.getElementById('tune-response-container'); const inputs = tuneContainer.querySelectorAll('select, input[type="range"], input[type="checkbox"]'); inputs.forEach(input => { settings[input.id] = input.type === 'checkbox' ? input.checked : input.value; }); settings.endWithQuestion = document.getElementById('end-with-question').checked; return settings; }
+function getFullUiSettings() { const settings = getTuneResponseSettings(); settings.myLocation = state.settings.location; settings.myProfile = state.settings.myProfile; settings.local_model_name = state.settings.modelName; return settings; }
 
 // --- Settings & Managers ---
 const SETTINGS_DEFAULTS = { nlpUrl: 'http://localhost:8000', apiUrl: 'http://localhost:8080/v1/chat/completions', modelName: 'llama3:latest', apiKey: '', location: 'charlotte_nc', myProfile: '', costPer1kTokens: 0.002 };
@@ -261,11 +262,14 @@ async function scrapeAndAnalyze(uiSettings = {}, tab) {
     const injectionResults = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: (name) => window[name](), args: [scraperFunctionName] });
     const scrapedDataResult = injectionResults[0].result;
     if (!scrapedDataResult || scrapedDataResult.error) throw new Error(`Scraping failed: ${scrapedDataResult.error || 'No data'}`);
-    state.scrapedData = { myName: scrapedDataResult.myName, myProfile: state.settings.myProfile, theirName: scrapedDataResult.theirName, theirProfile: scrapedDataResult.theirProfile, conversationHistory: scrapedDataResult.conversationHistory, theirLocationString: scrapedDataResult.theirLocationString };
+    state.scrapedData = { myName: scrapedDataResult.myName, theirName: scrapedDataResult.theirName, theirProfile: scrapedDataResult.theirProfile, conversationHistory: scrapedDataResult.conversationHistory, theirLocationString: scrapedDataResult.theirLocationString };
     state.matchId = 'mock_' + btoa(scrapedDataResult.theirName).substring(0, 10);
     const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: { myLocation: state.settings.location, myProfile: state.settings.myProfile, local_model_name: state.settings.modelName, ...uiSettings } };
     const response = await fetch(`${state.settings.nlpUrl}/api/v1/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!response.ok) throw new Error(`Analysis API failed`);
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Analysis API failed with status ${response.status}: ${errorBody}`);
+    }
     const analysisResult = await response.json();
     state.prompts = analysisResult.prompts;
     return analysisResult;
