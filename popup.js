@@ -21,6 +21,7 @@ const DEFAULTS = {
     geoContextToggle: true,
     newTopic: false,
     debugModeEnabled: false,
+    useEnhancedNlp: false,
     userLocationChoice: 'autodetect',
     customInstruction: '',
     lastResponse: '',
