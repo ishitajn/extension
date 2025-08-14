@@ -239,11 +239,8 @@ function updateMainButtonState() {
     const button = document.getElementById(SELECTORS.generateBtn);
     if (!button) return;
 
-    if (state.isDirty) {
-        button.textContent = 'Re-Analyze';
-    } else {
-        button.textContent = 'Generate';
-    }
+    // The button will now always say "Generate", as regeneration is the default action.
+    button.textContent = 'Generate';
 }
 
 
@@ -288,9 +285,6 @@ function setupPort() {
             break;
         case 'geoCalculationsResponse':
             handleGeoCalculationsResponse(message);
-            break;
-        case 'finalPayloadResponse':
-            handleFinalPayloadResponse(message);
             break;
         case 'generationUpdate':
             if (message.uuid === state.currentMatchUUID) {
@@ -431,22 +425,8 @@ function handleGeoCalculationsResponse(message) {
     updateGeoContextDisplay(message.geoContext);
 }
 
-function handleFinalPayloadResponse(message) {
-    if (message.error) {
-        showErrorInResponseArea(message.error);
-        setUIGeneratingState(false);
-        return;
-    }
-    sendMessage({
-        action: "getAIResponse",
-        data: {
-            payload: message.payload,
-            generationId: Date.now(),
-            uuid: state.currentMatchUUID,
-            logData: message.logData
-        }
-    });
-}
+// Obsolete: The backend now handles prompt generation.
+// function handleFinalPayloadResponse(message) { ... }
 
 // --- History and Cost Analysis ---
 
@@ -536,51 +516,69 @@ function renderDynamicUI() {
 
     container.innerHTML = ''; // Clear any existing controls
 
-    const dateIdeaContainer = document.createElement('div');
-    dateIdeaContainer.className = 'date-idea-container';
-    dateIdeaContainer.innerHTML = `<button id="date-idea-btn" class="btn btn-secondary hidden">
-        <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"></path></svg>
-        Suggest a Date Idea
-    </button>`;
-    container.appendChild(dateIdeaContainer);
+    const uiControlsGroup = state.uiOptions.find(group => group.groupName === 'UI Controls');
 
-    // This assumes a similar data structure to the original implementation
-    state.uiOptions.forEach(group => {
-        if (group.groupName === "Style & Voice" || group.groupName === "Core Controls") {
-            group.parameters.forEach(param => {
-                const control = createControlElement(param);
-                if(control) container.appendChild(control);
-            });
-        }
-    });
+    if (uiControlsGroup && uiControlsGroup.parameters) {
+        uiControlsGroup.parameters.forEach(param => {
+            const control = createControlElement(param);
+            if (control) container.appendChild(control);
+        });
+    } else {
+        DEBUG.error('UI', 'Could not find "UI Controls" group in options from API.');
+        container.textContent = 'Could not load UI controls.';
+    }
 
     // Re-attach listeners for the new dynamic elements
-    document.getElementById(SELECTORS.dateIdeaBtn)?.addEventListener('click', handleDateIdeaClick);
     addDirtyListeners();
+    // Note: Slider listeners are attached in loadAndApplySettings after values are set.
 }
 
 function createControlElement(param) {
     const controlGroup = document.createElement('div');
-    controlGroup.className = 'control-group';
 
     let elementHtml = '';
-    const labelHtml = `<label class="label-with-info">
-        <span>${param.displayName}</span>
-        <span class="info-icon" data-tooltip-id="${param.name}-info">i</span>
-        <span class="value-label" id="${param.name}-value-label"></span>
-    </label>`;
+    let labelHtml = '';
+
+    // Use description for the main label text as displayName is not in the API doc
+    const mainLabelText = param.description.split('.')[0];
 
     switch (param.uiType) {
         case 'slider':
-            elementHtml = `<input type="range" id="${param.name}" data-storage-key="${param.name}" min="${param.constraints.min}" max="${param.constraints.max}" step="${param.constraints.step}" value="${param.defaultValue}">`;
+            controlGroup.className = 'control-group';
+            labelHtml = `<label for="${param.name}" class="label-with-info">
+                <span>${mainLabelText}</span>
+                <span class="value-label" id="${param.name}-value-label">${param.defaultValue}</span>
+            </label>`;
+            elementHtml = `<input type="range" id="${param.name}" data-storage-key="${param.name}"
+                           min="${param.constraints.min}" max="${param.constraints.max}"
+                           step="${param.constraints.step}" value="${param.defaultValue}">`;
             controlGroup.innerHTML = labelHtml + elementHtml;
             break;
+
         case 'dropdown':
-            const optionsHtml = param.constraints.allowedValues.map(opt => `<option value="${opt.value}">${opt.description}</option>`).join('');
+            controlGroup.className = 'control-group stacked';
+            labelHtml = `<label for="${param.name}">${mainLabelText}</label>`;
+            const optionsHtml = param.constraints.allowedValues.map(opt =>
+                `<option value="${opt.value}" ${opt.value === param.defaultValue ? 'selected' : ''}>${opt.description}</option>`
+            ).join('');
             elementHtml = `<select id="${param.name}" data-storage-key="${param.name}">${optionsHtml}</select>`;
             controlGroup.innerHTML = labelHtml + elementHtml;
             break;
+
+        case 'checkbox':
+            // Checkboxes are handled by the hardcoded "Quick Toggles" for now
+            // as they are not part of the "Tune Response" card in the new design.
+            // This case is added for future-proofing if their location changes.
+            controlGroup.className = 'toggle-switch';
+            elementHtml = `<label>
+                <input type="checkbox" id="${param.name}" data-storage-key="${param.name}" ${param.defaultValue ? 'checked' : ''}>
+                <span>${mainLabelText}</span>
+            </label>`;
+            controlGroup.innerHTML = elementHtml;
+            break;
+
         default:
+            DEBUG.log('UI', `Unknown control uiType received from API: ${param.uiType}`);
             return null; // Don't render unknown control types
     }
     return controlGroup;
@@ -1002,87 +1000,57 @@ async function handleGenerateClick() {
     const button = document.getElementById(SELECTORS.generateBtn);
     if (!button || button.disabled) return;
 
-    const isReanalyze = button.textContent === 'Re-Analyze';
+    if (!state.sessionMatchProfile || !state.currentMatchUUID || !state.sessionScrapedData) {
+        showErrorInResponseArea("Error: Core data not loaded. Please try refreshing.");
+        return;
+    }
 
-    // For both Re-Analyze and Debug mode, we need to gather the current UI settings
-    const uiSettings = {};
+    // This function now exclusively handles regeneration.
+    // The initial generation is triggered automatically by the backend after /analyze.
+    const uiSettings = gatherUiSettings();
+
+    // The debug mode logic might need to be re-evaluated, but for now, we'll
+    // bypass it and use the main regeneration flow.
+    if (document.getElementById(SELECTORS.debugModeToggle).checked) {
+        alert("Debug mode needs to be updated for the new regeneration flow.");
+        return;
+    }
+
+    setUIGeneratingState(true);
+    startTimer(Date.now());
+
+    sendMessage({
+        action: "regeneratePrompts",
+        data: {
+            matchId: state.currentMatchUUID,
+            scrapedData: state.sessionScrapedData,
+            uiSettings: uiSettings
+        }
+    });
+}
+
+function gatherUiSettings() {
+    const settings = {};
+    // Gather settings from dynamically created controls
     document.querySelectorAll('#tune-response-controls [data-storage-key]').forEach(el => {
         const key = el.dataset.storageKey;
         if (el.type === 'checkbox') {
-            uiSettings[key] = el.checked;
+            settings[key] = el.checked;
+        } else if (el.type === 'range' || el.type === 'number') {
+            settings[key] = Number(el.value);
         } else {
-            uiSettings[key] = el.value;
+            settings[key] = el.value;
         }
     });
+    // Gather settings from the hardcoded "quick toggles"
+    document.querySelectorAll('.quick-toggles [data-storage-key]').forEach(el => {
+        const key = el.dataset.storageKey;
+        settings[key] = el.checked;
+    });
+    // Add custom instruction
+    settings.customInstruction = document.getElementById(SELECTORS.customInstruction).value.trim();
 
-    if (isReanalyze && !document.getElementById(SELECTORS.debugModeToggle).checked) {
-        console.log("Re-analyzing due to dirty state...");
-        setUIRefreshingState(true);
-        sendMessage({
-            action: "getNlpAnalysis",
-            data: {
-                scrapedData: state.sessionScrapedData,
-                uiSettings: uiSettings // Send current UI settings for re-analysis
-            }
-        });
-    } else {
-        if (!state.sessionMatchProfile || !state.currentMatchUUID || !state.sessionMatchProfile.analysis) {
-            showErrorInResponseArea("Error: Conversation analysis is not complete.");
-            return;
-        }
-
-        const dataForBackground = await gatherCoreDataForGeneration();
-
-        if (document.getElementById(SELECTORS.debugModeToggle).checked) {
-            const fullGenerationData = {
-                scrapedData: state.sessionScrapedData,
-                matchProfile: state.sessionMatchProfile,
-                taskInstructions: dataForBackground.taskInstructions,
-            };
-            const debugCallbacks = {
-                onSendToAI: (payload) => {
-                    sendMessage({ action: "getAIResponse", data: { payload, generationId: Date.now(), uuid: state.currentMatchUUID } });
-                },
-                onRegenerate: (modifiedData) => {
-                    sendMessage({ action: "getNlpAnalysis", data: { scrapedData: modifiedData.scrapedData, uiSettings: modifiedData.taskInstructions } });
-                },
-                hide: hideDebugModal,
-            };
-            showNlpModal(fullGenerationData, debugCallbacks);
-        } else {
-            sendMessage({ action: "getFinalPayload", data: dataForBackground });
-        }
-    }
-}
-
-async function gatherCoreDataForGeneration() {
-    const settings = await chrome.storage.local.get('myProfile');
-    const myProfile = settings.myProfile || DEFAULTS.myProfile;
-    const myName = state.sessionScrapedData?.myName || DEFAULTS.myProfile.split(',')[0].trim();
-    const theirName = state.sessionMatchProfile?.metadata?.theirName || 'Match';
-
-    const taskInstructions = {
-        myName: myName,
-        theirName: theirName,
-        goal: document.getElementById(SELECTORS.customInstruction).value.trim(),
-        flirtyValue: Number(document.getElementById(SELECTORS.flirtySlider).value),
-        lengthValue: Number(document.getElementById(SELECTORS.lengthSlider).value),
-        linguisticStyle: document.getElementById(SELECTORS.linguisticStyleSelect).value,
-        emojiStrategy: document.getElementById(SELECTORS.emojiStrategySelect).value,
-        temperature: parseFloat(document.getElementById(SELECTORS.temperatureSlider).value),
-        top_p: parseFloat(document.getElementById(SELECTORS.topPSlider).value),
-        endWithQuestion: document.getElementById(SELECTORS.questionToggleCheckbox).checked,
-        strictGoalOverride: document.getElementById(SELECTORS.strictGoalToggle).checked,
-        forceNewTopic: document.getElementById(SELECTORS.newTopicToggle).checked,
-        local_model_name: document.getElementById(SELECTORS.localModelName).value,
-    };
-
-    return {
-        uuid: state.currentMatchUUID,
-        taskInstructions: taskInstructions,
-        myProfile: myProfile,
-        forceIncludeGeoContext: document.getElementById(SELECTORS.geoContextToggle).checked,
-    };
+    return settings;
 }
 
 function handleCancelClick() {

@@ -1,83 +1,6 @@
 // background.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 
-// -- FROM-SCRATCH IMPLEMENTATION OF MISSING HELPERS --
-
-/**
- * FROM-SCRATCH-BEST-EFFORT (v2 - Refined)
- * A more dynamic from-scratch implementation of the prompt generation logic.
- */
-function generatePrompts(data) {
-    const systemMessage = `You are Wingman AI. Your goal is to help the user write a message to their match, ${data.theirName}.
-You must follow the user's Task Instructions precisely.
-The user's profile is: ${data.myProfile}
-The match's profile is: ${data.theirProfile}
-This is the conversation analysis: ${JSON.stringify(data.conversationAnalysis, null, 2)}`;
-
-    const userMessage = `My primary goal is: "${data.taskInstructions.goal || 'Just continue the conversation naturally.'}"
-Based on all the provided context, generate the ideal message.`;
-
-    return { systemMessage, userMessage };
-}
-
-/**
- * FROM-SCRATCH-BEST-EFFORT (v2 - Refined)
- * A more dynamic from-scratch implementation for conversation analysis.
- */
-function runFullConversationAnalysis(history, memory) {
-    console.log("Called refined runFullConversationAnalysis.");
-    const lastMessage = history.length > 0 ? history[history.length - 1] : null;
-
-    let isDirectQuestion = false;
-    let isLowEffort = false;
-    if (lastMessage && lastMessage.role === 'assistant') { // Analysis is on the match's message
-        if(lastMessage.content.includes('?')) {
-            isDirectQuestion = true;
-        }
-        if(lastMessage.content.split(' ').length < 4) {
-            isLowEffort = true;
-        }
-    }
-
-    return {
-        updatedMemory: memory, // Don't modify memory in this mock implementation
-        lastMessageAnalysis: {
-            isDirectQuestion,
-            isLowEffort,
-            isSarcastic: false, // Mocked
-            isAmbiguous: false, // Mocked
-            isVulnerable: false, // Mocked
-            valence: 0, // Mocked
-            arousal: 0, // Mocked
-            intents: isDirectQuestion ? ['questioning'] : ['storytelling'] // Basic intent logic
-        }
-    };
-}
-
-/**
- * FROM-SCRATCH-BEST-EFFORT (v2 - Refined)
- * A more dynamic from-scratch implementation.
- */
-function determineConversationState(history) {
-    if (!history || history.length === 0) {
-        return 'OPENER';
-    }
-    if (history.length < 5) {
-        return 'EARLY_CONVO';
-    }
-    return 'ACTIVE_CONVO';
-}
-
-/**
- * FROM-SCRATCH-BEST-EFFORT
- * Mock implementation.
- */
-function hasRecentGreeting(history) {
-    return false;
-}
-
-// NOTE: The spacetime library is missing. Timezone-related geo calculations
-// will be disabled to prevent errors. Distance calculation will still work.
-// spacetime.extend(informal);
+// All from-scratch helpers are now obsolete as this logic is handled by the backend.
 
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-BG-${category.toUpperCase()}] ${message}`, data ?? ''),
@@ -333,15 +256,28 @@ chrome.runtime.onConnect.addListener((port) => {
                 const nlpUrl = settings.nlpUrl;
                 if (!nlpUrl) throw new Error("NLP Service URL is not configured.");
 
-                // Generate matchId (UUID) before sending the request, as required by the backend.
+                // Generate matchId (UUID) before sending the request.
                 const matchId = await memoryManager._getMatchUUID(scrapedData.theirName, scrapedData.theirProfile);
 
-                // The UI settings are not yet available when doing the initial analysis,
-                // so we send an empty object. The backend should handle this.
+                // Fetch user data from storage to build the request body according to API documentation.
+                const userData = await chrome.storage.local.get({
+                    myName: '', // Default to empty string if not set
+                    myProfile: '', // Default to empty string if not set
+                    myLocation: '' // Default to empty string if not set
+                });
+
+                // Construct the flat payload as specified in the API documentation.
                 const payload = {
                     matchId: matchId,
-                    scraped_data: scrapedData,
-                    ui_settings: {}
+                    myName: userData.myName,
+                    myProfile: userData.myProfile,
+                    theirName: scrapedData.theirName,
+                    theirProfile: scrapedData.theirProfile,
+                    theirLocationString: scrapedData.matchLocation, // Renaming to match API
+                    conversationHistory: scrapedData.conversationHistory,
+                    ui_settings: {
+                        myLocation: userData.myLocation
+                    }
                 };
 
                 const response = await fetch(`${nlpUrl}/api/v1/analyze`, {
@@ -357,21 +293,38 @@ chrome.runtime.onConnect.addListener((port) => {
 
                 const analysisResult = await response.json();
 
-                // The server now returns the full analysis, which we can use to
-                // create or update our local match profile.
+                // The server now returns the full analysis and initial prompts.
+                // We store the analysis...
                 let matchProfile = memoryManager.createInitialProfile(scrapedData);
                 matchProfile.uuid = matchId; // Use the same ID generated for the request
                 matchProfile.analysis = analysisResult.full_analysis;
                 matchProfile.metadata.lastUpdated = new Date().toISOString();
-
-                // We still save the profile locally for caching and memory.
                 await memoryManager.saveMatchProfile(matchId, matchProfile);
 
-                DEBUG.log('NLP', 'Analysis from server received. Sending response to popup.');
+                DEBUG.log('NLP', 'Analysis from server received. Informing popup and triggering first generation.');
                 port.postMessage({
                     action: 'nlpAnalysisResponse',
-                    matchProfile: matchProfile // Send the locally constructed profile
+                    matchProfile: matchProfile
                 });
+
+                // ...and then we immediately trigger the first generation using the returned prompts.
+                const prompts = analysisResult.prompts;
+                if (prompts && prompts.system_prompt && prompts.user_prompt) {
+                    const llmPayload = {
+                        model: prompts.model_name || DEFAULTS.local_model_name,
+                        messages: [
+                            { role: "system", content: prompts.system_prompt },
+                            { role: "user", content: prompts.user_prompt }
+                        ],
+                        temperature: prompts.temperature,
+                        top_p: prompts.top_p,
+                    };
+                    await handleAITask(matchId, Date.now(), llmPayload, port, {
+                        logData: { uuid: matchId, prompts, source: 'analyze' }
+                    });
+                } else {
+                    throw new Error("Backend did not return initial prompts after analysis.");
+                }
 
             } catch (error) {
                 DEBUG.error('NLP', 'Analysis failed', error);
@@ -466,51 +419,65 @@ chrome.runtime.onConnect.addListener((port) => {
             });
         },
 
-        "getFinalPayload": async(request) => {
+        "regeneratePrompts": async (request) => {
             try {
-                const { uuid, taskInstructions, myProfile, forceIncludeGeoContext } = request.data;
-                if (!uuid || !taskInstructions) {
-                    throw new Error("getFinalPayload requires a UUID and taskInstructions.");
+                DEBUG.log('REGEN', 'Received regeneratePrompts request', request.data);
+                const { matchId, scrapedData, uiSettings } = request.data;
+                if (!matchId || !scrapedData || !uiSettings) {
+                    throw new Error("regeneratePrompts requires matchId, scrapedData, and uiSettings.");
                 }
 
-                const matchProfile = await memoryManager.getMatchProfile(uuid);
-                if (!matchProfile) {
-                    throw new Error(`No match profile found for UUID: ${uuid}`);
-                }
+                const settings = await chrome.storage.local.get({ nlpUrl: 'http://localhost:8000' });
+                const nlpUrl = settings.nlpUrl;
+                if (!nlpUrl) throw new Error("NLP Service URL is not configured.");
 
-                const generationData = {
-                    myName: taskInstructions.myName,
-                    theirName: matchProfile.metadata.theirName,
-                    myProfile: myProfile,
-                    theirProfile: matchProfile.metadata.theirProfile,
-                    conversationHistory: matchProfile.conversationHistory,
-                    taskInstructions: taskInstructions,
-                    geoContextData: matchProfile.memory.geoContextData,
-                    forceIncludeGeoContext: forceIncludeGeoContext,
-                    conversationAnalysis: matchProfile.analysis,
+                const payload = {
+                    matchId: matchId,
+                    scraped_data: scrapedData,
+                    ui_settings: uiSettings
                 };
 
-                const finalPayload = buildFinalPayload(generationData);
-                DEBUG.log('PAYLOAD', 'Final payload generated.', finalPayload);
-                port.postMessage({
-                    action: 'finalPayloadResponse',
-                    payload: finalPayload,
-                    logData: {
-                        uuid,
-                        analysis: matchProfile.analysis,
-                        payload: finalPayload
-                    }
+                const response = await fetch(`${nlpUrl}/api/v1/regenerate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`Regeneration failed: ${response.status} - ${errorBody}`);
+                }
+
+                const prompts = await response.json();
+
+                // The backend returns the prompts, now we execute them with the local LLM.
+                const llmPayload = {
+                    model: prompts.model_name || DEFAULTS.local_model_name,
+                    messages: [
+                        { role: "system", content: prompts.system_prompt },
+                        { role: "user", content: prompts.user_prompt }
+                    ],
+                    temperature: prompts.temperature,
+                    top_p: prompts.top_p,
+                };
+
+                // Re-use the handleAITask function to call the local LLM
+                await handleAITask(matchId, Date.now(), llmPayload, port, {
+                    logData: { uuid: matchId, prompts }
+                });
+
             } catch (error) {
-                DEBUG.error('PAYLOAD', 'Build failed', error);
+                DEBUG.error('REGEN', 'Regeneration process failed', error);
+                // Inform the popup of the failure
                 port.postMessage({
-                    action: 'finalPayloadResponse',
-                    error: error.message
+                    action: 'generationUpdate',
+                    uuid: request.data.matchId,
+                    state: { isGenerating: false, error: error.message }
                 });
             }
         },
 
-        "getAIResponse": async(request) => {
+       "getAIResponse": async(request) => {
             const { payload, generationId, uuid, logData } = request.data;
             DEBUG.log('AI', `Received getAIResponse request for UUID ${uuid}`, { generationId });
             if (!uuid || !payload) {
@@ -637,23 +604,6 @@ Generate one date idea in the specified JSON format.`;
         abortControllers.clear();
     });
 });
-
-function buildFinalPayload(data) {
-    const { systemMessage, userMessage } = generatePrompts(data);
-    return {
-        model: data.taskInstructions.local_model_name,
-        messages: [{
-                role: "system",
-                content: systemMessage
-            }, {
-                role: "user",
-                content: userMessage
-            }
-        ],
-        temperature: data.taskInstructions.temperature,
-        top_p: data.taskInstructions.top_p
-    };
-}
 
 function cleanAIResponse(rawResponse) {
     if (typeof rawResponse !== 'string' || !rawResponse)
