@@ -1,90 +1,57 @@
 // --- On-Install Logic ---
+// REMOVED: The onInstalled logic was flawed as it relied on a potentially
+// unconfigured user setting. The logic to fetch options if they are missing
+// is now handled correctly in the popup script.
+chrome.runtime.onInstalled.addListener(() => {
+    console.log('[Wingman AI] Extension installed/updated. Popup will handle option fetching on first open.');
+});
 
-chrome.runtime.onInstalled.addListener(async (details) => {
-    if (details.reason === 'install' || details.reason === 'update') {
-        console.log('[Background Script] Extension installed or updated. Fetching and caching UI options.');
-
-        // Get the NLP URL from storage. Use a default if not set.
-        const settings = await new Promise(resolve => chrome.storage.local.get({ nlpUrl: 'http://localhost:8000' }, resolve));
-        const nlpUrl = settings.nlpUrl;
-
-        try {
-            const response = await fetch(`${nlpUrl}/api/v1/options/all`);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch options, status: ${response.status}`);
-            }
-            const uiOptions = await response.json();
-            await chrome.storage.local.set({ uiOptions });
-            console.log('[Background Script] UI options fetched and cached successfully.');
-
-        } catch (error) {
-            console.error('[Background Script] Failed to fetch or cache UI options:', error);
-            // Can't show a UI error here, but the popup will fail gracefully.
-        }
+// --- Tab Update Listener for Observer Injection ---
+// This ensures the observer is injected only once when the tab is updated to a supported URL.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url && (tab.url.includes('tinder.com') || tab.url.includes('bumble.com'))) {
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['observer.js']
+        }).catch(err => console.error(`Failed to inject observer script: ${err}`));
     }
 });
 
-
-// --- Message Handling for LLM Generation ---
-
+// --- Message Handling for LLM Generation & Proactive Notifications ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'GENERATE_TEXT') {
         const { prompts, settings } = message.payload;
-        console.log('[Background Script] Received generation request.');
-
-        // Immediately return true to indicate we will send a response asynchronously
-        // This is crucial to prevent the message port from closing.
         (async () => {
             try {
                 const response = await fetch(settings.apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${settings.apiKey}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${settings.apiKey}` },
                     body: JSON.stringify({
                         model: settings.modelName,
                         messages: [
                             { role: 'system', content: prompts.system_prompt },
                             { role: 'user', content: prompts.user_prompt }
                         ],
-                        // Add other LLM params here if needed, e.g., temperature
                     })
                 });
-
                 if (!response.ok) {
                     const errorBody = await response.text();
-                    throw new Error(`LLM API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+                    throw new Error(`LLM API Error: ${response.status} - ${errorBody}`);
                 }
-
                 const data = await response.json();
-                // Assuming a standard chat completion response format
                 const generatedText = data.choices[0]?.message?.content || "No response text found.";
-
-                chrome.runtime.sendMessage({
-                    type: 'GENERATION_COMPLETE',
-                    payload: { text: generatedText }
-                });
-
+                chrome.runtime.sendMessage({ type: 'GENERATION_COMPLETE', payload: { text: generatedText } });
             } catch (error) {
-                console.error('[Background Script] Error during LLM call:', error);
-                chrome.runtime.sendMessage({
-                    type: 'GENERATION_ERROR', // Send a different message type for errors
-                    payload: { error: error.message }
-                });
+                chrome.runtime.sendMessage({ type: 'GENERATION_ERROR', payload: { error: error.message } });
             }
         })();
-
         return true;
     } else if (message.type === 'PROACTIVE_ANALYSIS_REQUEST') {
-        console.log('[Background Script] Received proactive analysis request.');
         chrome.notifications.create({
             type: 'basic',
-            iconUrl: 'icons/icon128.png', // Assuming an icon exists at this path
+            iconUrl: 'icons/icon128.png',
             title: 'Wingman AI',
             message: 'New message detected. Open Wingman to analyze the conversation!'
         });
     }
 });
-
-console.log('[Background Script] Service worker started.');
