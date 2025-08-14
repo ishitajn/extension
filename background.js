@@ -1,6 +1,24 @@
 // --- On-Install Logic ---
-chrome.runtime.onInstalled.addListener(() => {
-    console.log('[Wingman AI] Extension installed/updated. Popup will handle option fetching on first open.');
+chrome.runtime.onInstalled.addListener(async (details) => {
+    if (details.reason === 'install' || details.reason === 'update') {
+        console.log('[Wingman AI] Extension installed/updated. Popup will fetch options if needed.');
+        // The logic to fetch options is now primarily in the popup for robustness.
+        // We could pre-cache here, but letting the popup handle it avoids issues
+        // where the user hasn't configured the NLP URL yet.
+        const settings = await new Promise(resolve => chrome.storage.local.get({ nlpUrl: null }, resolve));
+        if (settings.nlpUrl) {
+            try {
+                const response = await fetch(`${settings.nlpUrl}/api/v1/options/all`);
+                if (response.ok) {
+                    const uiOptions = await response.json();
+                    await chrome.storage.local.set({ uiOptions });
+                    console.log('[Wingman AI] Pre-cached UI options successfully.');
+                }
+            } catch (e) {
+                console.warn("Pre-caching options failed. The popup will try again.", e);
+            }
+        }
+    }
 });
 
 // --- Tab Update Listener for Observer Injection ---

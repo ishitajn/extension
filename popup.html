@@ -24,21 +24,20 @@
             <textarea id="custom-instructions" class="custom-instructions-box" placeholder="Add custom instructions…"></textarea>
 
             <div class="toggle-switches-container">
-                <div class="toggle-switch"><label for="end-with-question">End w/ Question</label><input type="checkbox" id="end-with-question"></div>
+                <div class="toggle-switch"><label for="end-with-question">End w/ Question</label><input type="checkbox" id="end-with-question" checked></div>
                 <div class="toggle-switch"><label for="start-fresh">Start Fresh</label><input type="checkbox" id="start-fresh"></div>
                 <div class="toggle-switch"><label for="strict-goal">Strict Goal</label><input type="checkbox" id="strict-goal"></div>
                 <div class="toggle-switch"><label for="override-geo">Override Geo</label><input type="checkbox" id="override-geo"></div>
             </div>
 
             <div class="generate-section">
-                <button id="main-action-button" class="generate-button">GENERATE</button>
+                <button id="main-action-button" class="generate-button" disabled>Generate</button>
                 <div class="timer-debug-wrapper">
                     <div id="timer-display" class="timer-display">00:00</div>
                     <div class="debug-container"><label for="debug-checkbox">Debug</label><input type="checkbox" id="debug-checkbox"></div>
                 </div>
             </div>
 
-            <div id="tune-response-section" class="collapsible-panel"><h2 class="panel-title">Tune Response</h2><p class="panel-status" id="tune-response-status">Loading...</p><div id="tune-response-container"></div></div>
             <div id="geo-info-section" class="collapsible-panel" style="display: none;"><h2 class="panel-title">Geo Information</h2><div id="geo-info-container"></div></div>
             <div id="history-section" class="collapsible-panel" style="display: none;"><h2 class="panel-title">Response History</h2><div id="history-container"></div></div>
             <div id="cost-analysis-section" class="collapsible-panel" style="display: none;"><h2 class="panel-title">Cost Analysis</h2><div id="cost-analysis-container"></div></div>
@@ -50,14 +49,14 @@
             <div class="settings-panel">
                 <h2 class="panel-title">Global Configuration</h2>
                 <div class="setting-item"><label for="nlp-url">NLP Service URL</label><div class="input-with-button"><input type="text" id="nlp-url" placeholder="e.g., http://localhost:8000"><button id="test-nlp-button" class="test-button">Test</button></div><div class="validation-message" id="nlp-url-validation"></div></div>
-                <div class="setting-item"><label for="api-url">LLM API URL</label><div class="input-with-button"><input type="text" id="api-url" value="http://localhost:8080/v1/chat/completions"><button id="test-llm-button" class="test-button">Test</button></div><div class="validation-message" id="api-url-validation"></div></div>
-                <div class="setting-item"><label for="model-name">Model Name</label><input type="text" id="model-name" value="llama3:latest"></div>
+                <div class="setting-item"><label for="api-url">LLM API URL</label><div class="input-with-button"><input type="text" id="api-url"><button id="test-llm-button" class="test-button">Test</button></div><div class="validation-message" id="api-url-validation"></div></div>
+                <div class="setting-item"><label for="model-name">Model Name</label><input type="text" id="model-name"></div>
                 <div class="setting-item"><label for="api-key">API Key</label><input type="password" id="api-key" placeholder="Optional"></div>
-                <div class="setting-item"><label for="cost-per-1k-tokens">Cost per 1k Tokens ($)</label><input type="number" id="cost-per-1k-tokens" value="0.002" step="0.001"></div>
+                <div class="setting-item"><label for="cost-per-1k-tokens">Cost per 1k Tokens ($)</label><input type="number" id="cost-per-1k-tokens" step="0.001"></div>
             </div>
             <div class="settings-panel">
                 <h2 class="panel-title">Global Defaults</h2>
-                <div class="setting-item"><label for="location">Location</label><select id="location"><option value="auto">Auto-Detect</option><option value="charlotte_nc" selected>Charlotte, NC, USA</option></select></div>
+                <div class="setting-item"><label for="location">Location</label><select id="location"><option value="auto">Auto-Detect</option><option value="charlotte_nc">Charlotte, NC, USA</option></select></div>
                 <div class="setting-item"><label for="my-profile">My Profile</label><textarea id="my-profile" placeholder="Describe yourself..."></textarea></div>
                 <button id="reset-settings-button" class="reset-button">Reset Global Settings</button>
             </div>
@@ -71,7 +70,7 @@
                 <footer class="modal-footer">
                     <button id="debug-copy-prompt-button" class="secondary-button" style="display: none;">Copy Prompt</button>
                     <button id="debug-back-button" class="secondary-button" style="display: none;">Back</button>
-                    <button id="debug-regenerate-button" class="secondary-button" style="display: none;">Regenerate</button>
+                    <button id="debug-regenerate-button" class="secondary-button" style="display: none;">Re-Analyze</button>
                     <button id="debug-generate-button" class="generate-button" style="display: none;">Generate</button>
                     <button id="debug-next-button" class="generate-button">Next</button>
                 </footer>

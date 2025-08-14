@@ -15,10 +15,10 @@ body { font-family: 'Roboto', sans-serif; background-color: var(--background-col
 input[type="checkbox"] { accent-color: var(--highlight-color); }
 .generate-section { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
 .timer-debug-wrapper { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.generate-button { background-color: var(--highlight-color); color: #000; border: none; border-radius: 8px; padding: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background-color 0.2s ease; }
+.generate-button { background-color: var(--highlight-color); color: #000; border: none; border-radius: 8px; padding: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background-color 0.2s ease; flex-grow: 1; }
 .generate-button:hover { background-color: #ffde3b; }
 .generate-button:active { background-color: #ffd10a; }
-.secondary-button { padding: 12px; background-color: var(--surface-color); color: var(--primary-text-color); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-weight: 500; }
+.secondary-button { padding: 12px; background-color: var(--surface-color); color: var(--primary-text-color); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease; }
 .secondary-button:disabled { opacity: 0.5; cursor: not-allowed; }
 .secondary-button:hover:not(:disabled), .test-button:hover:not(:disabled) { background-color: #3a3a3a; }
 .secondary-button:active:not(:disabled), .test-button:active:not(:disabled) { background-color: #4a4a4a; }
@@ -27,9 +27,9 @@ input[type="checkbox"] { accent-color: var(--highlight-color); }
 .collapsible-panel, .settings-panel { background-color: var(--surface-color); border-radius: 8px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border-color); }
 .panel-title { margin: 0 0 4px 0; font-size: 16px; }
 .panel-status { margin: 0 0 16px 0; font-size: 13px; color: var(--secondary-text-color); }
-#tune-response-container { display: flex; flex-direction: column; gap: 16px; }
-label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
-input[type="text"], input[type="password"], select, textarea { width: 100%; box-sizing: border-box; background-color: var(--background-color); border: 1px solid var(--border-color); border-radius: 6px; color: var(--primary-text-color); padding: 8px; }
+.panel-content { display: flex; flex-direction: column; gap: 16px; }
+label { display: block; margin-bottom: 0; font-size: 14px; font-weight: 500; }
+input[type="text"], input[type="password"], select, textarea, input[type="number"] { width: 100%; box-sizing: border-box; background-color: var(--background-color); border: 1px solid var(--border-color); border-radius: 6px; color: var(--primary-text-color); padding: 8px; }
 textarea { min-height: 80px; resize: vertical; }
 .input-with-button { display: flex; gap: 8px; }
 .input-with-button input { flex-grow: 1; }
@@ -42,52 +42,12 @@ textarea { min-height: 80px; resize: vertical; }
 .validation-message { font-size: 12px; color: var(--error-color); margin-top: 4px; min-height: 14px; }
 .setting-item { margin-bottom: 16px; }
 .reset-button { width: 100%; background: none; border: 1px solid var(--secondary-text-color); color: var(--secondary-text-color); padding: 10px; border-radius: 6px; cursor: pointer; }
-.control-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.control-wrapper label {
-    flex-shrink: 0;
-    white-space: nowrap;
-    margin-bottom: 0; /* Override generic label style */
-}
-.control-wrapper .info-icon {
-    position: relative;
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    background-color: var(--secondary-text-color);
-    color: var(--background-color);
-    border-radius: 50%;
-    text-align: center;
-    font-size: 10px;
-    line-height: 14px;
-    cursor: help;
-}
-.control-wrapper .info-icon .tooltip {
-    visibility: hidden;
-    width: 200px;
-    background-color: #333;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 8px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    margin-left: -100px;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-.control-wrapper .info-icon:hover .tooltip {
-    visibility: visible;
-    opacity: 1;
-}
-.control-wrapper > input, .control-wrapper > select, .control-wrapper > textarea {
-    flex-grow: 1; /* Make the input take remaining space */
-}
+.control-wrapper { display: flex; align-items: center; gap: 8px; }
+.control-wrapper label { flex-shrink: 0; white-space: nowrap; }
+.control-wrapper .info-icon { position: relative; display: inline-block; width: 14px; height: 14px; background-color: var(--secondary-text-color); color: var(--background-color); border-radius: 50%; text-align: center; font-size: 10px; line-height: 14px; cursor: help; }
+.control-wrapper .info-icon .tooltip { visibility: hidden; width: 200px; background-color: #333; color: #fff; text-align: center; border-radius: 6px; padding: 8px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -100px; opacity: 0; transition: opacity 0.3s; }
+.control-wrapper .info-icon:hover .tooltip { visibility: visible; opacity: 1; }
+.control-wrapper > input, .control-wrapper > select, .control-wrapper > textarea { flex-grow: 1; }
 input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border-color); border-radius: 2px; outline: none; }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: var(--highlight-color); border-radius: 50%; cursor: pointer; }
 .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); justify-content: center; align-items: center; }
@@ -98,6 +58,5 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance
 .modal-footer { display: flex; justify-content: space-between; padding: 16px; border-top: 1px solid var(--border-color); }
 .debug-page { display: none; }
 .debug-page.active { display: block; }
-.json-viewer { margin-top: 16px; }
-.json-viewer-header { cursor: pointer; font-weight: 500; margin-bottom: 8px; }
-.json-viewer-content { display: none; background-color: var(--background-color); padding: 8px; border-radius: 4px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
+.panel-content { display: flex; flex-direction: column; gap: 16px; }
+.description { display: none; } /* Hide old description p tags */
