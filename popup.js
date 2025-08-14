@@ -1,35 +1,12 @@
 // popup.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { scrapeBumblePage, pasteTextIntoBumbleInput, scrapeTinderPage, pasteTextIntoTinderInput } from './content-scraper.js';
 import { getToneDescription, getLengthDescription, getEmojiInstruction, getStyleDescription, LINGUISTIC_STYLES } from './uiHelpers.js';
-import { UI_CONFIG } from './uiConfig.js';
+import { UI_CONFIG, DEFAULTS } from './uiConfig.js';
 import { showNlpModal, hideDebugModal } from './debug-modal.js';
 
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-POPUP-${category.toUpperCase()}] ${message}`, data ?? ''),
     error: (category, message, error = null) => console.error(`[WINGMAN-POPUP-${category.toUpperCase()}-ERROR] ${message}`, error ?? ''),
-};
-
-const DEFAULTS = {
-    flirtyValue: 60,
-    lengthValue: 30,
-    linguisticStyle: 'auto',
-    emojiStrategy: 'no_emoji',
-    modelTemperature: 0.5,
-    topPValue: 1.0,
-    endWithQuestion: false,
-    strictGoalOverride: false,
-    geoContextToggle: true,
-    newTopic: false,
-    debugModeEnabled: false,
-    useEnhancedNlp: false,
-    userLocationChoice: 'autodetect',
-    customInstruction: '',
-    lastResponse: '',
-    myProfile: `Jay, 35 – 6'0", Vice President at a financial institution, graduate degree from Illinois State University. Driven and grounded, with a strong career focus but a playful side—loves trying new cuisines and cooking for others. Enjoys occasional adventure, meaningful conversations, and believes in making a difference through small actions. Social drinker, non-smoker, exercises sometimes. Prefers genuine connection and meeting in person over endless chatting.`,
-    nlp_url: 'http://localhost:8081/nlp',
-    local_llama_url: 'http://localhost:8080/v1/chat/completions',
-    local_model_name: 'llama3:latest',
-    local_llama_api_key: '',
 };
 
 const MATCH_SPECIFIC_SETTINGS_KEYS = [
@@ -497,44 +474,46 @@ async function handleSettingChange(event) {
 }
 
 async function loadAndApplySettings() {
-    const globalKeys = Object.keys(DEFAULTS);
-    const globalSettings = {
-        ...DEFAULTS,
-        ...(await chrome.storage.local.get(globalKeys))
-    };
-    let matchSpecificSettings = {};
-    if (state.currentMatchUUID) {
-        const matchKey = getMatchSettingsKey(state.currentMatchUUID);
-        const result = await chrome.storage.local.get(matchKey);
-        matchSpecificSettings = result[matchKey] || {};
-    }
-    const finalSettings = {
-        ...globalSettings,
-        ...matchSpecificSettings
-    };
+    const allStorage = await chrome.storage.local.get(null);
+    const globalSettings = {};
+    const allDefaultKeys = Object.keys(DEFAULTS);
 
-    for (const key in UI_CONFIG) {
-        const config = UI_CONFIG[key];
-        const el = document.getElementById(config.id);
-        if (el) {
-            const value = finalSettings[key] ?? config.defaultValue;
-            if (config.type === 'checkbox') {
-                el.checked = value;
-            } else {
-                el.value = value;
-            }
+    for (const key of allDefaultKeys) {
+        if (allStorage[key] !== undefined) {
+            globalSettings[key] = allStorage[key];
         }
     }
 
-    const responseArea = document.getElementById(SELECTORS.responseArea);
-    if (responseArea && finalSettings.lastResponse) {
-        responseArea.textContent = finalSettings.lastResponse;
+    let matchSettings = {};
+    if (state.currentMatchUUID) {
+        const matchKey = getMatchSettingsKey(state.currentMatchUUID);
+        matchSettings = allStorage[matchKey] || {};
+    }
+
+    const finalSettings = {
+        ...DEFAULTS,
+        ...globalSettings,
+        ...matchSettings
+    };
+
+    for (const config of Object.values(UI_CONFIG)) {
+        const el = document.getElementById(config.id);
+        if (el) {
+            const value = finalSettings[config.storageKey];
+            if (config.type === 'checkbox') {
+                el.checked = value;
+            } else if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+                el.value = value;
+            } else if (el.isContentEditable) {
+                el.textContent = value;
+            }
+        }
     }
     updateSliderLabels();
     updateSliderValueLabel(SELECTORS.temperatureSlider, SELECTORS.temperatureValueLabel);
     updateSliderValueLabel(SELECTORS.topPSlider, SELECTORS.topPValueLabel, 2);
     updateClearButtonVisibility(document.getElementById(SELECTORS.customInstruction), document.getElementById(SELECTORS.clearInstructionBtn));
-    updateClearButtonVisibility(responseArea, document.getElementById(SELECTORS.clearResponseBtn));
+    updateClearButtonVisibility(document.getElementById(SELECTORS.responseArea), document.getElementById(SELECTORS.clearResponseBtn));
 }
 
 async function handleMatchReset() {
@@ -557,11 +536,14 @@ async function handleMasterReset() {
     const btn = document.getElementById(SELECTORS.masterResetBtn);
     btn.disabled = true;
     try {
-        const keysToRemove = Object.keys(DEFAULTS);
-        await chrome.storage.local.remove(keysToRemove);
+        await chrome.storage.local.clear();
+        state.sessionMatchProfile = null; // Clear the in-memory profile
         await loadAndApplySettings();
+        // Also refresh the UI to reflect the reset geo-data
+        await handleLocationChange();
+        displayConversationState(); // This will clear the state display
     } catch (e) {
-        DEBUG.error("RESET", "Failed to reset master settings:", e);
+        DEBUG.error("RESET", "Failed to perform master reset:", e);
     } finally {
         btn.disabled = false;
     }
@@ -1012,13 +994,32 @@ function showErrorInResponseArea(message) {
 }
 
 function displayConversationState() {
-    if (!state.sessionMatchProfile?.analysis)
+    const analysis = state.sessionMatchProfile?.analysis;
+
+    // Helper function to update and toggle visibility
+    const updateDisplay = (elementId, content) => {
+        const el = document.getElementById(elementId);
+        if (el) {
+            const hasContent = content !== null && content !== undefined && content !== '';
+            el.textContent = hasContent ? content : '';
+            el.classList.toggle('hidden', !hasContent);
+        }
+    };
+
+    if (!analysis) {
+        updateDisplay(SELECTORS.conversationStatusDisplay, 'Status: Analyzing...');
+        updateDisplay(SELECTORS.dateArcPhaseDisplay, null);
+        updateDisplay(SELECTORS.sexualTensionDisplay, null);
+        updateDisplay(SELECTORS.suggestedActionDisplay, null);
+        const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
+        if (dateIdeaBtn) dateIdeaBtn.classList.add('hidden');
         return;
-    const analysis = state.sessionMatchProfile.analysis;
-    const convoState = analysis.conversationState;
-    const dateArcPhase = analysis.memory?.dateArcPhase;
-    const sexualTension = analysis.sexualAnalysis?.sexualTensionScore;
-    const suggestedAction = analysis.responseSuggestions?.suggestedNextAction;
+    }
+
+    const { conversationState, memory, sexualAnalysis, responseSuggestions } = analysis;
+    const dateArcPhase = memory?.dateArcPhase;
+    const sexualTension = sexualAnalysis?.sexualTensionScore;
+    const suggestedAction = responseSuggestions?.suggestedNextAction;
 
     const stateDisplayMap = {
         'OPENER': 'Status: New Conversation (Opener)',
@@ -1028,19 +1029,11 @@ function displayConversationState() {
         'REENGAGING_WEEK': 'Status: Re-engaging (1-4 week pause)',
         'REENGAGING_MONTH': 'Status: Re-engaging (1+ month pause)'
     };
-    document.getElementById(SELECTORS.conversationStatusDisplay).textContent = stateDisplayMap[convoState] || 'Status: Unknown';
+    updateDisplay(SELECTORS.conversationStatusDisplay, stateDisplayMap[conversationState] || 'Status: Unknown');
+    updateDisplay(SELECTORS.dateArcPhaseDisplay, dateArcPhase ? `Date Arc: ${dateArcPhase}` : null);
+    updateDisplay(SELECTORS.sexualTensionDisplay, (sexualTension !== null && sexualTension !== undefined) ? `Tension: ${Math.round(sexualTension * 100)}%` : null);
+    updateDisplay(SELECTORS.suggestedActionDisplay, suggestedAction ? `Suggestion: ${suggestedAction.replace(/_/g, ' ')}` : null);
 
-    const dateArcPhaseEl = document.getElementById(SELECTORS.dateArcPhaseDisplay);
-    if(dateArcPhase) dateArcPhaseEl.textContent = `Date Arc: ${dateArcPhase}`;
-    else dateArcPhaseEl.textContent = '';
-
-    const sexualTensionEl = document.getElementById(SELECTORS.sexualTensionDisplay);
-    if(sexualTension) sexualTensionEl.textContent = `Tension: ${sexualTension * 100}%`;
-    else sexualTensionEl.textContent = '';
-
-    const suggestedActionEl = document.getElementById(SELECTORS.suggestedActionDisplay);
-    if(suggestedAction) suggestedActionEl.textContent = `Suggestion: ${suggestedAction.replace(/_/g, ' ')}`;
-    else suggestedActionEl.textContent = '';
 
     const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
     if (dateIdeaBtn) {

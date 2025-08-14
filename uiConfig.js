@@ -4,99 +4,89 @@ export const UI_CONFIG = {
     flirtySlider: {
         id: 'flirty-slider',
         type: 'slider',
+        storageKey: 'flirtyValue',
         defaultValue: 60,
-        displayName: 'Flirt Level',
-        description: 'Controls the level of flirtatiousness in the generated message.',
-        range: { min: 0, max: 100, step: 10 },
-        labelMap: { 0: 'Neutral', 20: 'Friendly', 40: 'Warm', 60: 'Flirty', 80: 'Very Flirty', 100: 'Daring' }
     },
     lengthSlider: {
         id: 'length-slider',
         type: 'slider',
+        storageKey: 'lengthValue',
         defaultValue: 30,
-        displayName: 'Length',
-        description: 'Controls the length of the generated message.',
-        range: { min: 0, max: 100, step: 10 },
-        labelMap: { 0: 'Micro', 20: 'Short', 40: 'Medium', 60: 'Long', 80: 'Epic', 100: 'Manifesto' }
     },
     linguisticStyleSelect: {
         id: 'linguistic-style-select',
         type: 'select',
+        storageKey: 'linguisticStyle',
         defaultValue: 'auto',
-        displayName: 'Linguistic Style',
-        description: 'Controls the linguistic style of the generated message.',
         options: ['auto', 'casual', 'charming', 'direct', 'intellectual', 'mysterious', 'playful', 'poetic', 'sarcastic', 'sexual', 'witty']
     },
     emojiStrategySelect: {
         id: 'emoji-strategy-select',
         type: 'select',
+        storageKey: 'emojiStrategy',
         defaultValue: 'no_emoji',
-        displayName: 'Emoji Strategy',
-        description: 'Controls the use of emojis in the generated message.',
-        options: {
-            'auto': 'Auto (Recommended)',
-            'friendly': 'Friendly',
-            'playful': 'Playful',
-            'bold': 'Bold',
-            'no_emoji': 'No Emoji'
-        }
+        options: { 'auto': 'Auto (Recommended)', 'friendly': 'Friendly', 'playful': 'Playful', 'bold': 'Bold', 'no_emoji': 'No Emoji' }
     },
     temperatureSlider: {
         id: 'temperature-slider',
         type: 'slider',
+        storageKey: 'modelTemperature',
         defaultValue: 0.5,
-        displayName: 'Creativity',
-        description: 'Controls the creativity of the AI. Higher values are more creative but less predictable.',
-        range: { min: 0, max: 2, step: 0.1 }
     },
     topPSlider: {
         id: 'top-p-slider',
         type: 'slider',
+        storageKey: 'topPValue',
         defaultValue: 1.0,
-        displayName: 'Focus',
-        description: 'Controls the focus of the AI. Lower values are more focused and less random.',
-        range: { min: 0, max: 1, step: 0.05 }
     },
     questionToggleCheckbox: {
         id: 'question-toggle-checkbox',
         type: 'checkbox',
+        storageKey: 'endWithQuestion',
         defaultValue: false,
-        displayName: 'End w/ Question',
-        description: 'If checked, the AI will try to end the message with a question.'
     },
     geoContextToggle: {
         id: 'geo-context-toggle',
         type: 'checkbox',
+        storageKey: 'geoContextToggle',
         defaultValue: true,
-        displayName: 'Use Geo-context',
-        description: 'If checked, the AI will use geographical context in its response.'
     },
     newTopicToggle: {
         id: 'new-topic-toggle',
         type: 'checkbox',
+        storageKey: 'newTopic',
         defaultValue: false,
-        displayName: 'Start Fresh',
-        description: 'If checked, the AI will ignore the last message and start a new topic.'
     },
     strictGoalToggle: {
         id: 'strict-goal-toggle',
         type: 'checkbox',
+        storageKey: 'strictGoalOverride',
         defaultValue: false,
-        displayName: 'Strict Goal',
-        description: 'If checked, the AI will strictly adhere to the custom instructions.'
     },
     debugModeToggle: {
         id: 'debug-mode-toggle',
         type: 'checkbox',
+        storageKey: 'debugModeEnabled',
         defaultValue: false,
-        displayName: 'Debug',
-        description: 'If checked, the debug modal will be shown before generating a response.'
     },
     useEnhancedNlp: {
         id: 'use-enhanced-nlp-toggle',
         type: 'checkbox',
+        storageKey: 'useEnhancedNlp',
         defaultValue: false,
-        displayName: 'Use Enhanced NLP',
-        description: 'If checked, a more advanced NLP model will be used (if available).'
-    }
+    },
+    // Non-UI settings that still need a home
+    nlpUrl: { id: 'nlpUrl', storageKey: 'nlp_url', defaultValue: 'http://localhost:8081/nlp' },
+    localLlamaUrl: { id: 'localLlamaUrl', storageKey: 'local_llama_url', defaultValue: 'http://localhost:8080/v1/chat/completions' },
+    localModelName: { id: 'localModelName', storageKey: 'local_model_name', defaultValue: 'llama3:latest' },
+    localLlamaApiKey: { id: 'localLlamaApiKey', storageKey: 'local_llama_api_key', defaultValue: '' },
+    userLocationSelect: { id: 'user-location-select', storageKey: 'userLocationChoice', defaultValue: 'autodetect' },
+    myProfileSetting: { id: 'my-profile-setting', storageKey: 'myProfile', defaultValue: `Jay, 35 – 6'0", Vice President at a financial institution, graduate degree from Illinois State University. Driven and grounded, with a strong career focus but a playful side—loves trying new cuisines and cooking for others. Enjoys occasional adventure, meaningful conversations, and believes in making a difference through small actions. Social drinker, non-smoker, exercises sometimes. Prefers genuine connection and meeting in person over endless chatting.` },
+    customInstruction: { id: 'custom-instruction', storageKey: 'customInstruction', defaultValue: '' },
+    responseArea: { id: 'response-area', storageKey: 'lastResponse', defaultValue: '' }
 };
+
+// --- Single Source of Truth for Defaults ---
+export const DEFAULTS = Object.fromEntries(
+    Object.values(UI_CONFIG).map(config => [config.storageKey, config.defaultValue])
+);

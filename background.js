@@ -1,16 +1,10 @@
 // background.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { generatePrompts } from './prompts.js';
+import { DEFAULTS } from './uiConfig.js';
 
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-BG-${category.toUpperCase()}] ${message}`, data ?? ''),
     error: (category, message, error = null) => console.error(`[WINGMAN-BG-${category.toUpperCase()}-ERROR] ${message}`, error ?? ''),
-};
-
-// --- NEW: Default configuration to prevent undefined settings ---
-const DEFAULTS = {
-    local_llama_url: 'http://localhost:8080/v1/chat/completions',
-    local_model_name: 'llama3:latest',
-    local_llama_api_key: '',
 };
 
 const abortControllers = new Map();
