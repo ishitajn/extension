@@ -2,10 +2,12 @@
 body { font-family: 'Roboto', sans-serif; background-color: var(--background-color); color: var(--primary-text-color); margin: 0; width: 350px; }
 #app-container { padding: 16px; }
 .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.header-icons { display: flex; align-items: center; gap: 16px; }
 .app-title { font-size: 20px; font-weight: 700; margin: 0; }
 .spinner { width: 18px; height: 18px; border: 2px solid var(--border-color); border-top-color: var(--highlight-color); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.icon-button { background: none; border: none; color: var(--secondary-text-color); font-size: 24px; cursor: pointer; }
+.icon-button { background: none; border: none; color: var(--secondary-text-color); font-size: 24px; cursor: pointer; transition: color 0.2s ease; }
+.icon-button:hover { color: var(--primary-text-color); }
 .message-box { background-color: var(--surface-color); border: 1px solid var(--error-color); color: var(--error-color); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
 .custom-instructions-box { width: 100%; box-sizing: border-box; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; color: var(--primary-text-color); padding: 10px; margin-bottom: 16px; min-height: 60px; resize: vertical; }
 .toggle-switches-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -40,8 +42,52 @@ textarea { min-height: 80px; resize: vertical; }
 .validation-message { font-size: 12px; color: var(--error-color); margin-top: 4px; min-height: 14px; }
 .setting-item { margin-bottom: 16px; }
 .reset-button { width: 100%; background: none; border: 1px solid var(--secondary-text-color); color: var(--secondary-text-color); padding: 10px; border-radius: 6px; cursor: pointer; }
-.control-wrapper { display: flex; flex-direction: column; }
-.control-wrapper .description { font-size: 11px; color: var(--secondary-text-color); margin-top: 4px; }
+.control-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.control-wrapper label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-bottom: 0; /* Override generic label style */
+}
+.control-wrapper .info-icon {
+    position: relative;
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    background-color: var(--secondary-text-color);
+    color: var(--background-color);
+    border-radius: 50%;
+    text-align: center;
+    font-size: 10px;
+    line-height: 14px;
+    cursor: help;
+}
+.control-wrapper .info-icon .tooltip {
+    visibility: hidden;
+    width: 200px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.control-wrapper .info-icon:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+.control-wrapper > input, .control-wrapper > select, .control-wrapper > textarea {
+    flex-grow: 1; /* Make the input take remaining space */
+}
 input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border-color); border-radius: 2px; outline: none; }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: var(--highlight-color); border-radius: 50%; cursor: pointer; }
 .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); justify-content: center; align-items: center; }
