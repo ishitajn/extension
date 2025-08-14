@@ -1,6 +1,6 @@
 // src/prompts.js (Corrected with Consistent Data Structuring)
 
-import { isMessageGeoRelated, getTimeContext } from './conversationHelpers.js';
+import { getTimeContext } from './conversationHelpers.js';
 import { getSystemPrompt } from './prompts/systemPrompt.js';
 import { buildContextPrompt } from './prompts/contextPrompt.js';
 import { buildTaskPrompt } from './prompts/taskPrompt.js';
@@ -24,7 +24,7 @@ export function generatePrompts(data) {
     const lastMessageFromMatch = conversationHistory?.filter(msg => msg.role === 'assistant').pop()?.content || '';
     let includeGeoContext = false;
     if (geoContextData) {
-        if (forceIncludeGeoContext || (geoContextData.distance.miles > 100 && (state === 'OPENER' || state.startsWith('REENGAGING') || (taskInstructions.goal && isMessageGeoRelated(taskInstructions.goal)) || (state !== 'OPENER' && isMessageGeoRelated(lastMessageFromMatch))))) {
+        if (forceIncludeGeoContext || (geoContextData.distance.miles > 100 && (state === 'OPENER' || state.startsWith('REENGAGING'))) || conversationAnalysis.lastMessageAnalysis.isGeoRelated) {
             includeGeoContext = true;
         }
     }
