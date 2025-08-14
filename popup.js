@@ -6,11 +6,13 @@ const debugModalState = { isRendered: false, currentPage: 0, totalPages: 0, page
 document.addEventListener('DOMContentLoaded', async () => {
     state.settings = await settingsManager.get();
     await loadUiOptions();
+    if (state.uiOptions.length === 0) return; // Stop if options failed to load
     renderDynamicUI(state.uiOptions);
     initEventListeners();
     initSettingsPanel(state.settings);
     const history = await historyManager.get();
     renderResponseHistory(history);
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab && (tab.url.includes('tinder.com') || tab.url.includes('bumble.com'))) {
         showSpinner();
@@ -39,22 +41,20 @@ async function loadUiOptions() {
     if (storedData.uiOptions && Array.isArray(storedData.uiOptions) && storedData.uiOptions.length > 0) {
         state.uiOptions = storedData.uiOptions;
     } else {
-        // Fallback: if options are not in cache, fetch them now.
         console.warn("UI configuration not found in cache. Fetching from network...");
         try {
-            const response = await fetch(`${state.settings.nlpUrl}/api/v1/options/all`);
+            const nlpUrl = (await settingsManager.get()).nlpUrl;
+            if (!nlpUrl) throw new Error("NLP Service URL is not set.");
+            const response = await fetch(`${nlpUrl}/api/v1/options/all`);
             if (!response.ok) throw new Error(`API Error ${response.status}`);
             const options = await response.json();
             await chrome.storage.local.set({ uiOptions: options });
             state.uiOptions = options;
-            console.log("Successfully fetched and cached UI options.");
         } catch (error) {
-            displayError("Critical: Could not fetch UI configuration.");
-            throw error; // Stop execution if we can't get options
+            displayError(`Critical: Could not fetch UI configuration. ${error.message}`);
         }
     }
 }
-
 
 // --- UI Rendering ---
 function renderDynamicUI(uiOptions) {
@@ -91,8 +91,42 @@ function renderCostAnalysis(tokenCount) { const container = document.getElementB
 function renderResponseHistory(history) { const container = document.getElementById('history-container'); const section = document.getElementById('history-section'); container.innerHTML = ''; if (history.length === 0) { section.style.display = 'none'; return; } section.style.display = 'block'; history.forEach(text => { const item = document.createElement('div'); item.className = 'history-item'; item.innerHTML = `<div class="history-item-text"></div><div class="history-item-actions"><button class="copy-btn">Copy</button><button class="use-btn">Use</button></div>`; item.querySelector('.history-item-text').textContent = text; item.querySelector('.copy-btn').addEventListener('click', () => navigator.clipboard.writeText(text)); item.querySelector('.use-btn').addEventListener('click', () => { document.getElementById('message-box').textContent = text; }); container.appendChild(item); }); }
 function showSpinner() { document.getElementById('spinner').style.display = 'block'; }
 function hideSpinner() { document.getElementById('spinner').style.display = 'none'; }
-function renderDebugModal(uiOptions) { /* ... */ }
-function navigateDebugModal(direction) { /* ... */ }
+function renderDebugModal(uiOptions) {
+    const container = document.getElementById('debug-modal-content-area');
+    container.innerHTML = '';
+    const debugGroup = uiOptions.find(g => g.groupName === "Conversation Analysis Thresholds");
+    if (!debugGroup) return;
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'debug-page';
+    pageDiv.dataset.pageIndex = 0;
+    const title = document.createElement('h3');
+    title.textContent = debugGroup.groupDescription;
+    pageDiv.appendChild(title);
+    debugGroup.parameters.forEach(param => pageDiv.appendChild(createControlElement(param)));
+    container.appendChild(pageDiv);
+    debugModalState.pages = [pageDiv];
+    const promptPage = document.createElement('div');
+    promptPage.className = 'debug-page';
+    promptPage.dataset.pageIndex = 1;
+    promptPage.innerHTML = `<h3>Generated Prompts</h3><textarea id="debug-prompt-display" readonly style="width: 100%; height: 200px;"></textarea>`;
+    container.appendChild(promptPage);
+    debugModalState.pages.push(promptPage);
+    debugModalState.totalPages = 2;
+    navigateDebugModal(0);
+}
+function navigateDebugModal(direction) {
+    const { currentPage, totalPages, pages } = debugModalState;
+    let newPage = currentPage + direction;
+    if (newPage < 0 || newPage >= totalPages) return;
+    if(pages[currentPage]) pages[currentPage].classList.remove('active');
+    if(pages[newPage]) pages[newPage].classList.add('active');
+    debugModalState.currentPage = newPage;
+    document.getElementById('debug-back-button').style.display = newPage > 0 ? 'block' : 'none';
+    document.getElementById('debug-next-button').style.display = newPage === 0 ? 'block' : 'none';
+    document.getElementById('debug-regenerate-button').style.display = newPage === 0 ? 'block' : 'none';
+    document.getElementById('debug-generate-button').style.display = newPage === 1 ? 'block' : 'none';
+    document.getElementById('debug-copy-prompt-button').style.display = newPage === 1 ? 'block' : 'none';
+}
 
 // --- Event Listeners & Handlers ---
 function initEventListeners() {
@@ -100,6 +134,13 @@ function initEventListeners() {
     document.getElementById('generate-button').addEventListener('click', handleGenerateClick);
     document.getElementById('settings-button').addEventListener('click', () => { document.getElementById('main-view').style.display = 'none'; document.getElementById('settings-view').style.display = 'block'; });
     document.getElementById('back-button').addEventListener('click', () => { document.getElementById('settings-view').style.display = 'none'; document.getElementById('main-view').style.display = 'block'; });
+    document.getElementById('debug-checkbox').addEventListener('change', (e) => { const modal = document.getElementById('debug-modal'); if (e.target.checked) { if (!debugModalState.isRendered) { renderDebugModal(state.uiOptions); debugModalState.isRendered = true; } modal.style.display = 'flex'; } else { modal.style.display = 'none'; } });
+    document.getElementById('debug-close-button').addEventListener('click', () => { document.getElementById('debug-modal').style.display = 'none'; document.getElementById('debug-checkbox').checked = false; });
+    document.getElementById('debug-next-button').addEventListener('click', () => navigateDebugModal(1));
+    document.getElementById('debug-back-button').addEventListener('click', () => navigateDebugModal(-1));
+    document.getElementById('debug-regenerate-button').addEventListener('click', handleModalRegenerateClick);
+    document.getElementById('debug-generate-button').addEventListener('click', handleGenerateClick);
+    document.getElementById('debug-copy-prompt-button').addEventListener('click', () => { const text = document.getElementById('debug-prompt-display').value; navigator.clipboard.writeText(text); const btn = document.getElementById('debug-copy-prompt-button'); const originalText = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = originalText; }, 1500); });
     chrome.runtime.onMessage.addListener(async (message) => { if (message.type === 'GENERATION_COMPLETE' || message.type === 'GENERATION_ERROR') { hideSpinner(); const generateBtn = document.getElementById('generate-button'); generateBtn.disabled = false; generateBtn.textContent = 'GENERATE'; const isError = message.type === 'GENERATION_ERROR'; const text = isError ? message.payload.error : message.payload.text; displayError(text); if (!isError) { await historyManager.add(text); const history = await historyManager.get(); renderResponseHistory(history); } } });
 }
 async function handleRegenerateClick() {
@@ -117,7 +158,25 @@ async function handleRegenerateClick() {
     } catch (error) { displayError(`Regeneration failed: ${error.message}`); }
     finally { hideSpinner(); regenBtn.disabled = false; }
 }
-async function handleGenerateClick() { if (!state.prompts) { displayError("No prompts available."); return; } const generateBtn = document.getElementById('generate-button'); generateBtn.disabled = true; showSpinner(); chrome.runtime.sendMessage({ type: 'GENERATE_TEXT', payload: { prompts: state.prompts, settings: state.settings } }); }
+async function handleModalRegenerateClick() {
+    const settings = getTuneResponseSettings();
+    const debugContainer = document.getElementById('debug-modal-content-area');
+    const inputs = debugContainer.querySelectorAll('select, input[type="range"], input[type="checkbox"]');
+    inputs.forEach(input => { settings[input.id] = input.type === 'checkbox' ? input.checked : input.value; });
+    showSpinner();
+    try {
+        const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: settings };
+        const response = await fetch(`${state.settings.nlpUrl}/api/v1/regenerate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) throw new Error(`API Error: ${response.status}`);
+        const newPrompts = await response.json();
+        state.prompts = newPrompts;
+        document.getElementById('debug-prompt-display').value = `SYSTEM:\n${newPrompts.system_prompt}\n\nUSER:\n${newPrompts.user_prompt}`;
+        renderCostAnalysis(newPrompts.token_count);
+        navigateDebugModal(1);
+    } catch (error) { displayError(`Modal regenerate failed: ${error.message}`); }
+    finally { hideSpinner(); }
+}
+async function handleGenerateClick() { if (!state.prompts) { displayError("No prompts available."); return; } const generateBtn = document.getElementById('generate-button'); generateBtn.disabled = true; showSpinner(); chrome.runtime.sendMessage({ type: 'GENERATE_TEXT', payload: { prompts: state.prompts, settings: state.settings } }); document.getElementById('debug-modal').style.display = 'none'; document.getElementById('debug-checkbox').checked = false; }
 function getTuneResponseSettings() { const settings = {}; const tuneContainer = document.getElementById('tune-response-container'); const inputs = tuneContainer.querySelectorAll('select, input[type="range"], input[type="checkbox"]'); inputs.forEach(input => { settings[input.id] = input.type === 'checkbox' ? input.checked : input.value; }); settings.endWithQuestion = document.getElementById('end-with-question').checked; return settings; }
 
 // --- Settings & Managers ---
@@ -135,7 +194,7 @@ function initSettingsPanel(settings) {
                 const value = e.target.value;
                 if (id === 'location' && value === 'auto') { handleAutoDetectLocation(); }
                 else { state.settings[key] = value; await settingsManager.save(state.settings); }
-                if (id.includes('url')) { if (validateUrlField(input)) { const url = new URL(value); chrome.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }); } }
+                if (id.includes('url')) { if (validateUrlField(input)) { const url = new URL(value); try { chrome.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] }); } catch(e) { console.warn("Could not request optional permission:", e)} } }
             });
             if (id.includes('url')) validateUrlField(input);
         }
@@ -179,9 +238,7 @@ async function handleAutoDetectLocation() {
                     locationInput.value = locationString;
                     state.settings.location = locationString;
                     await settingsManager.save(state.settings);
-                } else {
-                    throw new Error("Invalid response from geocoding API.");
-                }
+                } else { throw new Error("Invalid response from geocoding API."); }
             }).catch(err => {
                 console.error("Reverse geocoding failed:", err);
                 locationInput.value = 'charlotte_nc'; state.settings.location = 'charlotte_nc';
@@ -204,33 +261,10 @@ async function scrapeAndAnalyze(uiSettings = {}, tab) {
     const injectionResults = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: (name) => window[name](), args: [scraperFunctionName] });
     const scrapedDataResult = injectionResults[0].result;
     if (!scrapedDataResult || scrapedDataResult.error) throw new Error(`Scraping failed: ${scrapedDataResult.error || 'No data'}`);
-
-    // Correctly structure the payload for the backend
-    const payload = {
-        matchId: 'mock_' + btoa(scrapedDataResult.theirName).substring(0, 10),
-        scraped_data: {
-            myName: scrapedDataResult.myName,
-            theirName: scrapedDataResult.theirName,
-            theirProfile: scrapedDataResult.theirProfile,
-            theirLocationString: scrapedDataResult.theirLocationString,
-            conversationHistory: scrapedDataResult.conversationHistory
-        },
-        ui_settings: {
-            myLocation: state.settings.location,
-            myProfile: state.settings.myProfile,
-            local_model_name: state.settings.modelName,
-            ...uiSettings
-        }
-    };
-
-    state.scrapedData = payload.scraped_data; // Cache for regenerate
-    state.matchId = payload.matchId;
-
-    const response = await fetch(`${state.settings.nlpUrl}/api/v1/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
+    state.scrapedData = { myName: scrapedDataResult.myName, myProfile: state.settings.myProfile, theirName: scrapedDataResult.theirName, theirProfile: scrapedDataResult.theirProfile, conversationHistory: scrapedDataResult.conversationHistory, theirLocationString: scrapedDataResult.theirLocationString };
+    state.matchId = 'mock_' + btoa(scrapedDataResult.theirName).substring(0, 10);
+    const payload = { matchId: state.matchId, scraped_data: state.scrapedData, ui_settings: { myLocation: state.settings.location, myProfile: state.settings.myProfile, local_model_name: state.settings.modelName, ...uiSettings } };
+    const response = await fetch(`${state.settings.nlpUrl}/api/v1/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`Analysis API failed`);
     const analysisResult = await response.json();
     state.prompts = analysisResult.prompts;
