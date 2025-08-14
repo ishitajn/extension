@@ -275,8 +275,8 @@ chrome.runtime.onConnect.addListener((port) => {
                 matchProfile.metadata.matchLocation = scrapedData.matchLocation;
 
                 // ---- NEW: Call backend for NLP analysis ----
-                const settings = await chrome.storage.local.get(['nlp_url', 'myProfile', 'userLocationChoice', 'useEnhancedNlp']);
-                const nlpUrl = settings.nlp_url || DEFAULTS.nlp_url;
+                const settings = await chrome.storage.local.get(DEFAULTS);
+                const nlpUrl = settings.nlp_url; // No need for fallback, get() with DEFAULTS handles it.
 
                 const requestBody = {
                     matchId: uuid,
@@ -290,7 +290,8 @@ chrome.runtime.onConnect.addListener((port) => {
                     ui_settings: {
                         myLocation: settings.userLocationChoice,
                         myProfile: settings.myProfile,
-                        useEnhancedNlp: settings.useEnhancedNlp || false
+                        useEnhancedNlp: settings.useEnhancedNlp,
+                        local_model_name: settings.local_model_name
                     }
                 };
 
