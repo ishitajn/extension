@@ -286,11 +286,12 @@ async function handleAITask(uuid, generationId, payload, port, options = {}) {
             return;
         }
 
+        const { responseText, usage } = await fetchLocalLlamaResponse(settings.local_llama_api_key, payload, settings, controller.signal);
         const finalResponse = options.onSuccess ? options.onSuccess(responseText) : cleanAIResponse(responseText);
 
-        await setGenerationState(uuid, { isGenerating: false, response: finalResponse, generationStartTime: null }, port);
+        await setGenerationState(uuid, { isGenerating: false, response: finalResponse, generationStartTime: null, tokenCount: usage?.total_tokens }, port);
         if (options.logData) {
-            await performanceLogger.log({ ...options.logData, response: finalResponse });
+            await performanceLogger.log({ ...options.logData, response: finalResponse, usage });
         }
 
     } catch (error) {
@@ -326,61 +327,50 @@ chrome.runtime.onConnect.addListener((port) => {
             try {
                 DEBUG.log('NLP', 'Received getNlpAnalysis request', request.data);
                 const { scrapedData } = request.data;
-                if (!scrapedData)
-                    throw new Error("getNlpAnalysis received no scrapedData.");
+                if (!scrapedData) throw new Error("getNlpAnalysis received no scrapedData.");
 
-                const uuid = await memoryManager._getMatchUUID(scrapedData.theirName, scrapedData.theirProfile);
-                let matchProfile = await memoryManager.getMatchProfile(uuid);
+                // Get the NLP URL from storage
+                const settings = await chrome.storage.local.get({ nlpUrl: 'http://localhost:8000' });
+                const nlpUrl = settings.nlpUrl;
+                if (!nlpUrl) throw new Error("NLP Service URL is not configured.");
 
-                if (!matchProfile) {
-                    DEBUG.log('NLP', `No existing profile found for ${uuid}. Creating new one.`);
-                    matchProfile = memoryManager.createInitialProfile(scrapedData);
-                    matchProfile.uuid = uuid;
-                }
-
-                const newCacheHash = await generateCacheHash(scrapedData.conversationHistory, scrapedData.theirProfile);
-                if (matchProfile.memory?.lastCacheHash === newCacheHash && matchProfile.analysis) {
-                    DEBUG.log('NLP-CACHE', 'Cache HIT.', {
-                        uuid
-                    });
-                    port.postMessage({
-                        action: 'nlpAnalysisResponse',
-                        matchProfile
-                    });
-                    return;
-                }
-                DEBUG.log('NLP-CACHE', 'Cache MISS. Running full analysis.', {
-                    uuid
-                });
-
-                matchProfile.conversationHistory = scrapedData.conversationHistory;
-                matchProfile.metadata.theirProfile = scrapedData.theirProfile;
-                matchProfile.metadata.matchLocation = scrapedData.matchLocation;
-
-                const { updatedMemory, lastMessageAnalysis } = runFullConversationAnalysis(matchProfile.conversationHistory, matchProfile.memory);
-                matchProfile.memory = updatedMemory;
-                matchProfile.memory.lastCacheHash = newCacheHash;
-
-                const state = determineConversationState(scrapedData.conversationHistory);
-                const suppressGreeting = hasRecentGreeting(scrapedData.conversationHistory) && !state.startsWith('REENGAGING');
-
-                const fullAnalysis = {
-                    conversationState: state,
-                    suppressGreeting: suppressGreeting,
-                    lastMessageAnalysis: lastMessageAnalysis,
-                    memory: matchProfile.memory,
+                // The UI settings are not yet available when doing the initial analysis,
+                // so we send an empty object. The backend should handle this.
+                const payload = {
+                    scraped_data: scrapedData,
+                    ui_settings: {}
                 };
 
-                matchProfile.analysis = fullAnalysis;
-                matchProfile.metadata.lastUpdated = new Date().toISOString();
-                await memoryManager.saveMatchProfile(uuid, matchProfile);
-                DEBUG.log('NLP', 'Analysis complete. Sending response.', {
-                    matchProfile
+                const response = await fetch(`${nlpUrl}/api/v1/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`NLP service error: ${response.status} - ${errorBody}`);
+                }
+
+                const analysisResult = await response.json();
+
+                // The server now returns the full analysis, which we can use to
+                // create or update our local match profile.
+                const uuid = await memoryManager._getMatchUUID(scrapedData.theirName, scrapedData.theirProfile);
+                let matchProfile = memoryManager.createInitialProfile(scrapedData);
+                matchProfile.uuid = uuid;
+                matchProfile.analysis = analysisResult.full_analysis;
+                matchProfile.metadata.lastUpdated = new Date().toISOString();
+
+                // We still save the profile locally for caching and memory.
+                await memoryManager.saveMatchProfile(uuid, matchProfile);
+
+                DEBUG.log('NLP', 'Analysis from server received. Sending response to popup.');
                 port.postMessage({
                     action: 'nlpAnalysisResponse',
-                    matchProfile
+                    matchProfile: matchProfile // Send the locally constructed profile
                 });
+
             } catch (error) {
                 DEBUG.error('NLP', 'Analysis failed', error);
                 port.postMessage({
@@ -677,7 +667,35 @@ function cleanAIResponse(rawResponse) {
     return (earliestStopIndex !== -1 ? rawResponse.substring(0, earliestStopIndex) : rawResponse).trim();
 }
 
+// --- Proactive Notification Logic ---
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url && (tab.url.includes('tinder.com/app/messages') || tab.url.includes('bumble.com/app/chat'))) {
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['observer.js']
+        }).catch(err => console.error(`Failed to inject observer script: ${err}`));
+    }
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'PROACTIVE_ANALYSIS_REQUEST') {
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/icon128.png',
+            title: 'Wingman AI',
+            message: 'New message detected. Open Wingman to analyze the conversation!'
+        });
+    }
+    // This listener must return true if it will respond asynchronously.
+    // Since onConnect is used for the main logic, we can return false or undefined here.
+});
+
+
 async function fetchLocalLlamaResponse(apiKey, payload, settings, signal) {
+    // Add `stream: false` to ensure we get usage data in the response
+    const finalPayload = { ...payload, stream: false };
+
     const { local_llama_url } = settings;
     const headers = {
         "Content-Type": "application/json"
@@ -690,7 +708,7 @@ async function fetchLocalLlamaResponse(apiKey, payload, settings, signal) {
         response = await fetch(local_llama_url, {
             method: "POST",
             headers,
-            body: JSON.stringify(payload),
+            body: JSON.stringify(finalPayload),
             signal
         });
     } catch (error) {
@@ -711,12 +729,11 @@ async function fetchLocalLlamaResponse(apiKey, payload, settings, signal) {
     }
 
     const responseData = await response.json();
-    if (payload.response_format?.type === "json_object") {
-        return responseData.choices[0].message.content;
-    }
-    if (!responseData.choices?.[0]?.message?.content) {
-        throw new Error('Local server returned an unexpected response format.');
+    const responseText = responseData.choices[0]?.message?.content || '';
+
+    if (!responseText) {
+         throw new Error('Local server returned an unexpected response format (missing content).');
     }
 
-    return responseData.choices[0].message.content.trim();
+    return { responseText: responseText.trim(), usage: responseData.usage };
 }

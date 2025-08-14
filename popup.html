@@ -83,58 +83,8 @@
             <details class="card" open>
                 <summary class="card-header">Tune Response</summary>
                 <div class="info-display" id="conversation-status-display">Status: Analyzing...</div>
-                <div class="card-content">
-                    <div class="date-idea-container">
-                        <button id="date-idea-btn" class="btn btn-secondary hidden">
-                            <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"></path></svg>
-                            Suggest a Date Idea
-                        </button>
-                    </div>
-
-                    <div class="control-group">
-                        <label class="label-with-info">
-                            <span>Linguistic Style</span>
-                            <span class="info-icon" data-tooltip-id="style-info">i</span>
-                        </label>
-                        <select id="linguistic-style-select" data-storage-key="linguisticStyle"></select>
-                    </div>
-                    <div class="control-group">
-                        <label class="label-with-info">
-                            <span>Flirt Level</span>
-                            <span class="info-icon" data-tooltip-id="flirt-info">i</span>
-                            <span class="value-label" id="flirty-value-label"></span>
-                        </label>
-                        <input type="range" id="flirty-slider" data-storage-key="flirtyValue" min="0" max="100" step="10">
-                    </div>
-                    <div class="control-group">
-                        <label class="label-with-info">
-                            <span>Length</span>
-                            <span class="info-icon" data-tooltip-id="length-info">i</span>
-                            <span class="value-label" id="length-value-label"></span>
-                        </label>
-                        <input type="range" id="length-slider" data-storage-key="lengthValue" min="0" max="100" step="10">
-                    </div>
-                    <div class="control-group">
-                        <label class="label-with-info">
-                            <span>Emoji Strategy</span>
-                            <span class="info-icon" data-tooltip-id="emoji-info">i</span>
-                        </label>
-                        <select id="emoji-strategy-select" data-storage-key="emojiStrategy"></select>
-                    </div>
-                    <div class="control-group">
-                        <label class="label-with-info">
-                            <span>Creativity</span>
-                            <span id="temperature-value-label" class="value-label"></span>
-                        </label>
-                        <input type="range" id="temperature-slider" data-storage-key="modelTemperature" min="0" max="2" step="0.1">
-                    </div>
-                     <div class="control-group">
-                        <label class="label-with-info">
-                            <span>Focus</span>
-                            <span id="top-p-value-label" class="value-label"></span>
-                        </label>
-                        <input type="range" id="top-p-slider" data-storage-key="topPValue" min="0" max="1" step="0.05">
-                    </div>
+                <div class="card-content" id="tune-response-controls">
+                    <!-- Dynamic controls will be rendered here by popup.js -->
                 </div>
             </details>
 
@@ -161,6 +111,20 @@
                     </table>
                 </div>
             </details>
+
+            <details class="card" id="history-section" hidden>
+                <summary class="card-header">Response History</summary>
+                <div class="card-content" id="history-container">
+                    <!-- History items will be rendered here -->
+                </div>
+            </details>
+
+            <details class="card" id="cost-analysis-section" hidden>
+                <summary class="card-header">Cost Analysis</summary>
+                <div class="card-content" id="cost-analysis-container">
+                    <!-- Cost analysis will be rendered here -->
+                </div>
+            </details>
         </main>
 
         <!-- ===== SETTINGS VIEW ===== -->
@@ -174,9 +138,11 @@
             <div class="card">
                 <div class="card-header">Connection Details</div>
                 <div class="card-content">
-                    <div class="control-group stacked"><label for="localLlamaUrl">API URL</label><input type="text" id="localLlamaUrl" data-storage-key="local_llama_url"></div>
+                    <div class="control-group stacked"><label for="nlpUrl">NLP Service URL</label><input type="text" id="nlpUrl" data-storage-key="nlpUrl"></div>
+                    <div class="control-group stacked"><label for="localLlamaUrl">LLM API URL</label><input type="text" id="localLlamaUrl" data-storage-key="local_llama_url"></div>
                     <div class="control-group stacked"><label for="localModelName">Model Name</label><input type="text" id="localModelName" data-storage-key="local_model_name"></div>
                     <div class="control-group stacked"><label for="localLlamaApiKey">API Key (Optional)</label><input type="text" id="localLlamaApiKey" data-storage-key="local_llama_api_key"></div>
+                    <div class="control-group stacked"><label for="costPer1kTokens">Cost per 1k Tokens ($)</label><input type="number" id="costPer1kTokens" data-storage-key="costPer1kTokens" step="0.001"></div>
                 </div>
             </div>
             <div class="card">

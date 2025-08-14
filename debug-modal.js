@@ -169,7 +169,17 @@ function updateNavButtons() {
 
 export function showNlpModal(initialData, cbs) {
     callbacks = cbs;
-    modalState = JSON.parse(JSON.stringify(initialData));
+    // The data model is slightly different now. We get the full matchProfile.
+    modalState = {
+        scrapedData: initialData.scrapedData,
+        myProfile: initialData.matchProfile.metadata.myProfile,
+        theirProfile: initialData.matchProfile.metadata.theirProfile,
+        conversationHistory: initialData.matchProfile.conversationHistory,
+        conversationAnalysis: initialData.matchProfile.analysis,
+        geoContextData: initialData.matchProfile.memory.geoContextData,
+        taskInstructions: initialData.taskInstructions,
+        finalPayload: null
+    };
     currentView = 'analysis';
 
     const overlay = document.getElementById('debug-modal-overlay');
@@ -178,19 +188,24 @@ export function showNlpModal(initialData, cbs) {
             <div class="modal-content" id="debug-modal-content"></div>
             <div class="modal-footer"><div class="modal-actions">
                 <button id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="modal-regenerate-btn" class="btn btn-secondary">Re-Analyze with Overrides</button>
                 <button id="modal-back-btn" class="btn btn-secondary">Back</button>
                 <button id="modal-primary-action-btn" class="btn btn-primary">Next</button>
             </div></div></div>`;
     overlay.classList.remove('hidden');
 
-    document.getElementById('modal-cancel-btn').addEventListener('click', callbacks.hideDebugModal);
+    document.getElementById('modal-cancel-btn').addEventListener('click', callbacks.hide);
     document.getElementById('modal-back-btn').addEventListener('click', () => handleNav(-1));
+
+    document.getElementById('modal-regenerate-btn').addEventListener('click', () => {
+        callbacks.onRegenerate(modalState);
+        callbacks.hide();
+    });
+
     document.getElementById('modal-primary-action-btn').addEventListener('click', () => {
         if (currentView === 'final') {
-            callbacks.setUIGeneratingState(true);
-            callbacks.startTimer(Date.now());
-            callbacks.hideDebugModal();
-            callbacks.sendFinalPayloadToAI(modalState.finalPayload);
+            callbacks.onSendToAI(modalState.finalPayload);
+            callbacks.hide();
         } else {
             handleNav(1);
         }
