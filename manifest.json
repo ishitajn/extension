@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "AI Assistant",
+  "version": "10.4",
+  "description": "On-demand AI assistant",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "geolocation"
+  ],
+  "host_permissions": [
+    "*://*.bumble.com/*",
+    "*://*.tinder.com/*",
+    "https://nominatim.openstreetmap.org/*",
+	"https://timeapi.io/*",
+    "http://localhost:*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "lib/compromise.js",
+        "lib/spacetime.min.js",
+		"lib/spacetime-informal.min.js"
+	],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+B",
+        "mac": "Command+Shift+B"
+      },
+      "description": "Open Wingman"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
