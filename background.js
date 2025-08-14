@@ -333,9 +333,13 @@ chrome.runtime.onConnect.addListener((port) => {
                 const nlpUrl = settings.nlpUrl;
                 if (!nlpUrl) throw new Error("NLP Service URL is not configured.");
 
+                // Generate matchId (UUID) before sending the request, as required by the backend.
+                const matchId = await memoryManager._getMatchUUID(scrapedData.theirName, scrapedData.theirProfile);
+
                 // The UI settings are not yet available when doing the initial analysis,
                 // so we send an empty object. The backend should handle this.
                 const payload = {
+                    matchId: matchId,
                     scraped_data: scrapedData,
                     ui_settings: {}
                 };
@@ -355,14 +359,13 @@ chrome.runtime.onConnect.addListener((port) => {
 
                 // The server now returns the full analysis, which we can use to
                 // create or update our local match profile.
-                const uuid = await memoryManager._getMatchUUID(scrapedData.theirName, scrapedData.theirProfile);
                 let matchProfile = memoryManager.createInitialProfile(scrapedData);
-                matchProfile.uuid = uuid;
+                matchProfile.uuid = matchId; // Use the same ID generated for the request
                 matchProfile.analysis = analysisResult.full_analysis;
                 matchProfile.metadata.lastUpdated = new Date().toISOString();
 
                 // We still save the profile locally for caching and memory.
-                await memoryManager.saveMatchProfile(uuid, matchProfile);
+                await memoryManager.saveMatchProfile(matchId, matchProfile);
 
                 DEBUG.log('NLP', 'Analysis from server received. Sending response to popup.');
                 port.postMessage({
