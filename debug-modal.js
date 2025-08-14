@@ -7,7 +7,7 @@ import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './conversationHelpers.js';
 let modalState = {};
 let callbacks = {};
 let currentView = 'analysis'; // Start at the new first view
-const VIEWS = ['analysis', 'memory', 'context', 'final'];
+const VIEWS = ['analysis', 'sexual', 'date', 'geo', 'memory', 'context', 'suggestions', 'final'];
 
 const CONVERSATION_STATES = ['OPENER', 'EARLY_CONVO', 'ACTIVE_CONVO', 'REENGAGING_DAY', 'REENGAGING_WEEK', 'REENGAGING_MONTH'];
 const INTENT_OPTIONS = ['questioning', 'planning', 'reacting_to_humor', 'storytelling', 'flirting_or_sexual'];
@@ -107,11 +107,23 @@ function renderView() {
     case 'analysis':
         html = renderAnalysisView();
         break;
+    case 'sexual':
+        html = renderSexualAnalysisView();
+        break;
+    case 'date':
+        html = renderDateAnalysisView();
+        break;
+    case 'geo':
+        html = renderGeoContextView();
+        break;
     case 'memory':
         html = renderMemoryView();
         break;
     case 'context':
         html = renderContextView();
+        break;
+    case 'suggestions':
+        html = renderSuggestionsView();
         break;
     case 'final':
         html = renderFinalPayloadView();
@@ -155,6 +167,77 @@ function renderAnalysisView() {
             <tr><td>Intents</td><td>${createMultiSelect('subtext-intents', 'conversationAnalysis.lastMessageAnalysis.intents', INTENT_OPTIONS, lastMessageAnalysis.intents)}</td></tr>
         </table>
         ${createCollapsibleJSON('View/Edit Raw Analysis Object', conversationAnalysis)}
+    `;
+}
+
+function renderSexualAnalysisView() {
+    const { sexualAnalysis } = modalState;
+    if (!sexualAnalysis) return '<h3>View 2: Sexual Analysis</h3><p>Not available.</p>';
+
+    const tensionLabels = { 0: 'None', 0.5: 'Subtle', 0.8: 'High', 1: 'Intense' };
+    const confidenceLabels = { 0: 'None', 0.5: 'Maybe', 0.8: 'Likely', 1: 'Certain' };
+    const paceOptions = ['slow', 'moderate', 'fast'];
+    const styleOptions = ['direct_and_explicit', 'playful_and_teasing', 'romantic_and_sensual'];
+    const suggestionOptions = ['match_and_escalate', 'redirect_to_romance', 'clarify_and_respect_boundary'];
+    const archetypeOptions = ['The Romantic', 'The Adventurer', 'The Intellectual Seducer'];
+
+    return `
+        <h3>View 2: Sexual Analysis</h3>
+        <table class="payload-table">
+            <tr><td>Sexual Tension</td><td>${createSlider('sexual-tension', 'sexualAnalysis.sexualTensionScore', sexualAnalysis.sexualTensionScore, 0, 1, 0.1, tensionLabels)}</td></tr>
+            <tr><td>Intent Confidence</td><td>${createSlider('sexual-confidence', 'sexualAnalysis.sexualIntentConfidence', sexualAnalysis.sexualIntentConfidence, 0, 1, 0.1, confidenceLabels)}</td></tr>
+            <tr><td>Escalation Pace</td><td>${createSelect('sexual-pace', 'sexualAnalysis.escalationPace', paceOptions, sexualAnalysis.escalationPace)}</td></tr>
+            <tr><td>Dominant/Submissive</td><td>${createSlider('sexual-domsub', 'sexualAnalysis.dominantSubmissiveScore', sexualAnalysis.dominantSubmissiveScore, -1, 1, 0.1, { '-1': 'Submissive', 0: 'Neutral', 1: 'Dominant' })}</td></tr>
+            <tr><td>Communication Style</td><td>${createSelect('sexual-style', 'sexualAnalysis.sexualCommunicationStyle', styleOptions, sexualAnalysis.sexualCommunicationStyle)}</td></tr>
+            <tr><td>Response Suggestion</td><td>${createSelect('sexual-suggestion', 'sexualAnalysis.sexualResponseSuggestion', suggestionOptions, sexualAnalysis.sexualResponseSuggestion)}</td></tr>
+            <tr><td>Sexual Archetype</td><td>${createSelect('sexual-archetype', 'sexualAnalysis.sexualArchetype', archetypeOptions, sexualAnalysis.sexualArchetype)}</td></tr>
+        </table>
+        ${createCollapsibleJSON('View/Edit Raw Sexual Analysis', sexualAnalysis)}
+    `;
+}
+
+function renderDateAnalysisView() {
+    const { dateAnalysis } = modalState;
+    if (!dateAnalysis) return '<h3>View 3: Date Analysis</h3><p>Not available.</p>';
+
+    const commitmentOptions = ['tentative', 'confirmed', 'imminent'];
+    const dateTypeOptions = ['coffee_date', 'dinner_and_drinks', 'casual_hangout'];
+    const vibeOptions = ['romantic', 'adventurous', 'intellectual'];
+    const initiatorOptions = ['user', 'match', 'mutual'];
+
+    return `
+        <h3>View 3: Date Analysis</h3>
+        <table class="payload-table">
+            <tr><td>Date Planned?</td><td>${createCheckbox('date-isPlanned', 'dateAnalysis.isDatePlanned', dateAnalysis.isDatePlanned)}</td></tr>
+            <tr><td>Commitment Level</td><td>${createSelect('date-commitment', 'dateAnalysis.dateCommitmentLevel', commitmentOptions, dateAnalysis.dateCommitmentLevel)}</td></tr>
+            <tr><td>Venue</td><td>${createInput('date-venue', 'dateAnalysis.dateLogistics.venue', dateAnalysis.dateLogistics.venue)}</td></tr>
+            <tr><td>Time (ISO)</td><td>${createInput('date-time', 'dateAnalysis.dateLogistics.time', dateAnalysis.dateLogistics.time)}</td></tr>
+            <tr><td>Date Type</td><td>${createSelect('date-type', 'dateAnalysis.dateType', dateTypeOptions, dateAnalysis.dateType)}</td></tr>
+            <tr><td>Date Vibe</td><td>${createSelect('date-vibe', 'dateAnalysis.dateVibe', vibeOptions, dateAnalysis.dateVibe)}</td></tr>
+            <tr><td>Is Virtual?</td><td>${createCheckbox('date-isVirtual', 'dateAnalysis.isVirtual', dateAnalysis.isVirtual)}</td></tr>
+            <tr><td>Who Initiated?</td><td>${createSelect('date-initiator', 'dateAnalysis.whoInitiated', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
+        </table>
+        ${createCollapsibleJSON('View/Edit Raw Date Analysis', dateAnalysis)}
+    `;
+}
+
+function renderGeoContextView() {
+    const { geoContext } = modalState;
+    if (!geoContext) return '<h3>View 4: Geo Context</h3><p>Not available.</p>';
+
+    return `
+        <h3>View 4: Geo Context</h3>
+        <table class="payload-table">
+            <tr><td colspan="2" style="text-align:center; background:#333;"><strong>User Location</strong></td></tr>
+            <tr><td>Latitude</td><td>${createInput('geo-user-lat', 'geoContext.userLocation.lat', geoContext.userLocation.lat, 'number')}</td></tr>
+            <tr><td>Longitude</td><td>${createInput('geo-user-lon', 'geoContext.userLocation.lon', geoContext.userLocation.lon, 'number')}</td></tr>
+            <tr><td>Timezone</td><td>${createInput('geo-user-tz', 'geoContext.userLocation.timeZone', geoContext.userLocation.timeZone)}</td></tr>
+            <tr><td colspan="2" style="text-align:center; background:#333;"><strong>Match Location</strong></td></tr>
+            <tr><td>Latitude</td><td>${createInput('geo-match-lat', 'geoContext.matchLocation.lat', geoContext.matchLocation.lat, 'number')}</td></tr>
+            <tr><td>Longitude</td><td>${createInput('geo-match-lon', 'geoContext.matchLocation.lon', geoContext.matchLocation.lon, 'number')}</td></tr>
+            <tr><td>Timezone</td><td>${createInput('geo-match-tz', 'geoContext.matchLocation.timeZone', geoContext.matchLocation.timeZone)}</td></tr>
+        </table>
+        ${createCollapsibleJSON('View/Edit Raw Geo Context', geoContext)}
     `;
 }
 
@@ -202,6 +285,29 @@ function renderContextView() {
         <div class="messages-container">${historyHtml}</div>
         <button id="add-message-btn" class="btn btn-secondary add-message-btn">Add Message</button>
         ${createCollapsibleJSON('View/Edit Raw GeoContext Data', modalState.geoContextData)}
+    `;
+}
+
+function renderSuggestionsView() {
+    const { responseSuggestions } = modalState;
+    if (!responseSuggestions) return '<h3>View 7: Response Suggestions</h3><p>Not available.</p>';
+
+    const styleOptions = LINGUISTIC_STYLES;
+    const emojiOptions = ['auto', 'friendly', 'playful', 'bold', 'no_emoji'];
+    const nextActionOptions = ['ask_for_date', 'build_rapport', 'clarify_intent', 'escalate_sexually'];
+
+    return `
+        <h3>View 7: Response Suggestions</h3>
+        <table class="payload-table">
+            <tr><td>Suggested Length</td><td>${createInput('suggestions-length', 'responseSuggestions.length', responseSuggestions.length, 'number')}</td></tr>
+            <tr><td>Suggested Tone</td><td>${createInput('suggestions-tone', 'responseSuggestions.tone', responseSuggestions.tone, 'number')}</td></tr>
+            <tr><td>Suggested Style</td><td>${createSelect('suggestions-style', 'responseSuggestions.linguisticStyle', styleOptions, responseSuggestions.linguisticStyle)}</td></tr>
+            <tr><td>Suggested Emoji</td><td>${createSelect('suggestions-emoji', 'responseSuggestions.emojiStrategy', emojiOptions, responseSuggestions.emojiStrategy)}</td></tr>
+            <tr><td>End with Question?</td><td>${createCheckbox('suggestions-endWithQuestion', 'responseSuggestions.endWithQuestion', responseSuggestions.endWithQuestion)}</td></tr>
+            <tr><td>Suggested Next Action</td><td>${createSelect('suggestions-nextAction', 'responseSuggestions.suggestedNextAction', nextActionOptions, responseSuggestions.suggestedNextAction)}</td></tr>
+            <tr><td>Key Talking Points (one per line)</td><td>${createTextarea('suggestions-talkingPoints', 'responseSuggestions.keyTalkingPoints', (responseSuggestions.keyTalkingPoints || []).join('\n'))}</td></tr>
+        </table>
+        ${createCollapsibleJSON('View/Edit Raw Suggestions', responseSuggestions)}
     `;
 }
 
@@ -283,11 +389,20 @@ function updateRawJsonDisplay(key) {
     case 'analysis':
         objectToDisplay = modalState.conversationAnalysis;
         break;
+    case 'sexual':
+        objectToDisplay = modalState.sexualAnalysis;
+        break;
+    case 'date':
+        objectToDisplay = modalState.dateAnalysis;
+        break;
+    case 'geo':
+        objectToDisplay = modalState.geoContext;
+        break;
     case 'memory':
         objectToDisplay = modalState.conversationAnalysis.memory;
         break;
-    case 'geocontext':
-        objectToDisplay = modalState.geoContextData;
+    case 'suggestions':
+        objectToDisplay = modalState.responseSuggestions;
         break;
     case 'final':
         objectToDisplay = modalState.finalPayload;

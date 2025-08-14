@@ -104,6 +104,9 @@ const SELECTORS = {
     lengthValueLabel: 'length-value-label',
     emojiStrategySelect: 'emoji-strategy-select',
     conversationStatusDisplay: 'conversation-status-display',
+    dateArcPhaseDisplay: 'date-arc-phase-display',
+    sexualTensionDisplay: 'sexual-tension-display',
+    suggestedActionDisplay: 'suggested-action-display',
     questionToggleCheckbox: 'question-toggle-checkbox',
     strictGoalToggle: 'strict-goal-toggle',
     geoContextToggle: 'geo-context-toggle',
@@ -1007,7 +1010,9 @@ function displayConversationState() {
         return;
     const analysis = state.sessionMatchProfile.analysis;
     const convoState = analysis.conversationState;
-    const dateArcPhase = analysis.memory.dateArcPhase;
+    const dateArcPhase = analysis.memory?.dateArcPhase;
+    const sexualTension = analysis.sexualAnalysis?.sexualTensionScore;
+    const suggestedAction = analysis.responseSuggestions?.suggestedNextAction;
 
     const stateDisplayMap = {
         'OPENER': 'Status: New Conversation (Opener)',
@@ -1017,9 +1022,19 @@ function displayConversationState() {
         'REENGAGING_WEEK': 'Status: Re-engaging (1-4 week pause)',
         'REENGAGING_MONTH': 'Status: Re-engaging (1+ month pause)'
     };
-    const statusEl = document.getElementById(SELECTORS.conversationStatusDisplay);
-    if (statusEl)
-        statusEl.textContent = stateDisplayMap[convoState] || 'Status: Unknown';
+    document.getElementById(SELECTORS.conversationStatusDisplay).textContent = stateDisplayMap[convoState] || 'Status: Unknown';
+
+    const dateArcPhaseEl = document.getElementById(SELECTORS.dateArcPhaseDisplay);
+    if(dateArcPhase) dateArcPhaseEl.textContent = `Date Arc: ${dateArcPhase}`;
+    else dateArcPhaseEl.textContent = '';
+
+    const sexualTensionEl = document.getElementById(SELECTORS.sexualTensionDisplay);
+    if(sexualTension) sexualTensionEl.textContent = `Tension: ${sexualTension * 100}%`;
+    else sexualTensionEl.textContent = '';
+
+    const suggestedActionEl = document.getElementById(SELECTORS.suggestedActionDisplay);
+    if(suggestedAction) suggestedActionEl.textContent = `Suggestion: ${suggestedAction.replace(/_/g, ' ')}`;
+    else suggestedActionEl.textContent = '';
 
     const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
     if (dateIdeaBtn) {
