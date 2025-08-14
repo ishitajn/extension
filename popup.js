@@ -1006,15 +1006,21 @@ async function handleGenerateClick() {
     }
 
     // This function now exclusively handles regeneration.
-    // The initial generation is triggered automatically by the backend after /analyze.
-    const uiSettings = gatherUiSettings();
+    const uiSettings = await gatherUiSettings();
 
-    // The debug mode logic might need to be re-evaluated, but for now, we'll
-    // bypass it and use the main regeneration flow.
+    // The debug mode logic might need to be re-evaluated.
     if (document.getElementById(SELECTORS.debugModeToggle).checked) {
         alert("Debug mode needs to be updated for the new regeneration flow.");
         return;
     }
+
+    // Construct the complete scraped_data object for the regenerate call, as it needs user context.
+    const userData = await chrome.storage.local.get({ myName: '', myProfile: DEFAULTS.myProfile });
+    const completeScrapedData = {
+        ...state.sessionScrapedData,
+        myName: userData.myName,
+        myProfile: userData.myProfile
+    };
 
     setUIGeneratingState(true);
     startTimer(Date.now());
@@ -1023,13 +1029,13 @@ async function handleGenerateClick() {
         action: "regeneratePrompts",
         data: {
             matchId: state.currentMatchUUID,
-            scrapedData: state.sessionScrapedData,
+            scrapedData: completeScrapedData,
             uiSettings: uiSettings
         }
     });
 }
 
-function gatherUiSettings() {
+async function gatherUiSettings() {
     const settings = {};
     // Gather settings from dynamically created controls
     document.querySelectorAll('#tune-response-controls [data-storage-key]').forEach(el => {
@@ -1049,6 +1055,14 @@ function gatherUiSettings() {
     });
     // Add custom instruction
     settings.customInstruction = document.getElementById(SELECTORS.customInstruction).value.trim();
+
+    // Add fields required by the inconsistent /regenerate endpoint validation
+    const extraData = await chrome.storage.local.get({
+        myProfile: DEFAULTS.myProfile,
+        local_model_name: DEFAULTS.local_model_name
+    });
+    settings.myProfile = extraData.myProfile;
+    settings.local_model_name = extraData.local_model_name;
 
     return settings;
 }
