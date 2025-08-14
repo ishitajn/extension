@@ -1,6 +1,6 @@
 // background.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { generatePrompts } from './prompts.js';
-import { DEFAULTS } from './uiConfig.js';
+import { DEFAULTS, USER_LOCATIONS } from './uiConfig.js';
 
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-BG-${category.toUpperCase()}] ${message}`, data ?? ''),
@@ -137,49 +137,44 @@ class MatchMemory {
 }
 const memoryManager = new MatchMemory();
 
-async function fetchTimezoneFromCoords(lat, lon) {
-    const url = `https://timeapi.io/api/time/current/coordinate?latitude=${lat}&longitude=${lon}`;
+async function reverseGeocode(lat, lon) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
     try {
         const response = await fetch(url);
-        if (!response.ok)
-            throw new Error(`timeapi.io failed: ${response.status}`);
+        if (!response.ok) throw new Error(`Nominatim reverse geocode failed: ${response.status}`);
         const data = await response.json();
-        return {
-            timeZone: data?.timeZone || null,
-            country: data?.countryName || null,
-        };
+        const { city, town, village, county, state, country } = data.address;
+        return city || town || village || county || state || country || 'Unknown Location';
     } catch (error) {
-        DEBUG.error('TIMEAPI', 'Failed to fetch timezone', error);
+        DEBUG.error('REVERSE_GEOCODE', 'Failed to reverse geocode', error);
         return null;
     }
 }
 
-async function geocodeLocation(locationString) {
-    if (!locationString || locationString.toLowerCase() === 'not specified')
-        return null;
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationString)}&format=json&limit=1&extratags=1&addressdetails=1`;
+async function resolveUserLocation(locationChoice) {
+    const defaultLocation = "Charlotte, NC, USA";
+    if (locationChoice !== 'autodetect') {
+        return USER_LOCATIONS[locationChoice]?.name || defaultLocation;
+    }
+
     try {
-        const response = await fetch(url);
-        if (!response.ok)
-            throw new Error(`Nominatim API failed: ${response.status}`);
-        const data = await response.json();
-        if (data && data.length > 0) {
-            const { lat, lon, display_name, extratags, address } = data[0];
-            return {
-                lat: parseFloat(lat),
-                lon: parseFloat(lon),
-                displayName: display_name,
-                timeZone: extratags?.timezone || null,
-                country: address?.country || null,
-                country_code: address?.country_code || null
-            };
-        }
-        return null;
+        const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                timeout: 10000,
+                enableHighAccuracy: false
+            });
+        });
+
+        const { latitude, longitude } = position.coords;
+        const cityName = await reverseGeocode(latitude, longitude);
+        return cityName || defaultLocation;
+
     } catch (error) {
-        DEBUG.error('GEOCODE', `Failed to geocode: ${locationString}`, error);
-        return null;
+        DEBUG.error('GEOLOCATION', `Failed to auto-detect location: ${error.message}`, error);
+        return defaultLocation;
     }
 }
+
 
 async function handleAITask(uuid, generationId, payload, port, options = {}) {
     if (abortControllers.has(uuid)) {
@@ -278,6 +273,8 @@ chrome.runtime.onConnect.addListener((port) => {
                 const settings = await chrome.storage.local.get(DEFAULTS);
                 const nlpUrl = settings.nlp_url; // No need for fallback, get() with DEFAULTS handles it.
 
+                const myLocation = await resolveUserLocation(settings.userLocationChoice);
+
                 const requestBody = {
                     matchId: uuid,
                     scraped_data: {
@@ -288,7 +285,7 @@ chrome.runtime.onConnect.addListener((port) => {
                         conversationHistory: scrapedData.conversationHistory
                     },
                     ui_settings: {
-                        myLocation: settings.userLocationChoice,
+                        myLocation: myLocation,
                         myProfile: settings.myProfile,
                         useEnhancedNlp: settings.useEnhancedNlp,
                         local_model_name: settings.local_model_name
@@ -329,89 +326,6 @@ chrome.runtime.onConnect.addListener((port) => {
                     error: error.message
                 });
             }
-        },
-
-        "getGeoCalculations": async(request) => {
-            DEBUG.log('GEO', 'Received getGeoCalculations request', request.data);
-            const { userLocation, userCoords, uuid } = request.data;
-            if (!uuid) {
-                port.postMessage({
-                    action: 'geoCalculationsResponse',
-                    geoContext: null
-                });
-                return;
-            }
-
-            const matchProfile = await memoryManager.getMatchProfile(uuid);
-            if (!matchProfile) {
-                port.postMessage({
-                    action: 'geoCalculationsResponse',
-                    geoContext: null
-                });
-                return;
-            }
-
-            const matchLocationString = matchProfile.metadata.matchLocation;
-
-            if (matchProfile.memory.geoContextData && matchProfile.metadata.matchLocation === matchLocationString) {
-                DEBUG.log('GEO', 'Returning cached geo data.');
-                port.postMessage({
-                    action: 'geoCalculationsResponse',
-                    geoContext: matchProfile.memory.geoContextData
-                });
-                return;
-            }
-
-            let userGeoData = userLocation;
-            if (userCoords) {
-                const timeData = await fetchTimezoneFromCoords(userCoords.latitude, userCoords.longitude);
-                userGeoData = {
-                    lat: userCoords.latitude,
-                    lon: userCoords.longitude,
-                    timeZone: timeData?.timeZone,
-                    country: timeData?.country
-                };
-            }
-            const matchCoords = await geocodeLocation(matchLocationString);
-            if (!userGeoData || !matchCoords) {
-                port.postMessage({
-                    action: 'geoCalculationsResponse',
-                    geoContext: null
-                });
-                return;
-            }
-            const R = 6371;
-            const dLat = (matchCoords.lat - userGeoData.lat) * (Math.PI / 180);
-            const dLon = (matchCoords.lon - userGeoData.lon) * (Math.PI / 180);
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(userGeoData.lat * (Math.PI / 180)) * Math.cos(matchCoords.lat * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            const distanceKm = R * c;
-            const distance = {
-                km: Math.round(distanceKm),
-                miles: Math.round(distanceKm * 0.621371)
-            };
-            const userS = spacetime.now(userGeoData.timeZone);
-            const matchTimeData = await fetchTimezoneFromCoords(matchCoords.lat, matchCoords.lon);
-            const matchTimeZoneName = matchTimeData?.timeZone || matchCoords.timeZone || (matchCoords.country_code ? spacetime(matchCoords.country_code)?.timezone()?.name : null);
-            const matchS = matchTimeZoneName ? spacetime.now(matchTimeZoneName) : null;
-            const getTimeOfDay = s => (h => h < 5 ? 'Late Night' : h < 8 ? 'Early Morning' : h < 12 ? 'Morning' : h < 14 ? 'Afternoon' : h < 17 ? 'Late Afternoon' : h < 19 ? 'Evening' : h < 22 ? 'Late Evening' : 'Night')(s.hour());
-            const newGeoContext = {
-                distance,
-                userTimeOfDay: getTimeOfDay(userS),
-                matchTimeOfDay: matchS ? getTimeOfDay(matchS) : 'N/A',
-                timeZoneDifference: matchS ? Math.abs((userS.offset() - matchS.offset()) / 60) : null,
-                countryDifference: (userGeoData.country && matchCoords.country && userGeoData.country !== matchCoords.country) ? `User: ${userGeoData.country}, Match: ${matchCoords.country}.` : null,
-                userCountry: userGeoData.country,
-                matchCountry: matchCoords.country || 'Unknown',
-                cachedAt: new Date().toISOString()
-            };
-            matchProfile.memory.geoContextData = newGeoContext;
-            await memoryManager.saveMatchProfile(matchProfile.uuid, matchProfile);
-            DEBUG.log('GEO', 'Geo calculation complete. Sending response.', newGeoContext);
-            port.postMessage({
-                action: 'geoCalculationsResponse',
-                geoContext: newGeoContext
-            });
         },
 
         "getFinalPayload": async(request) => {

@@ -22,46 +22,6 @@ const EMOJI_STRATEGIES = {
     'bold': 'Bold',
     'no_emoji': 'No Emoji'
 };
-const USER_LOCATIONS = {
-    'autodetect': {
-        name: 'Auto-Detect Location'
-    },
-    'charlotte': {
-        name: 'Charlotte, NC, USA',
-        lat: 35.2271,
-        lon: -80.8431,
-        timeZone: 'America/New_York',
-        country: 'United States'
-    },
-    'nyc': {
-        name: 'New York, NY, USA',
-        lat: 40.7128,
-        lon: -74.0060,
-        timeZone: 'America/New_York',
-        country: 'United States'
-    },
-    'la': {
-        name: 'Los Angeles, CA, USA',
-        lat: 34.0522,
-        lon: -118.2437,
-        timeZone: 'America/Los_Angeles',
-        country: 'United States'
-    },
-    'london': {
-        name: 'London, UK',
-        lat: 51.5072,
-        lon: -0.1276,
-        timeZone: 'Europe/London',
-        country: 'United Kingdom'
-    },
-    'sydney': {
-        name: 'Sydney, Australia',
-        lat: -33.8688,
-        lon: 151.2093,
-        timeZone: 'Australia/Sydney',
-        country: 'Australia'
-    },
-};
 
 const SELECTORS = {
     loadingView: 'loading-view',
@@ -309,17 +269,22 @@ async function handleNlpAnalysisResponse(message) {
     state.currentMatchUUID = message.matchProfile.uuid;
 
     await loadAndApplySettings();
-    await handleLocationChange();
+
+    // The geoContext is now part of the main analysis payload
+    if (state.sessionMatchProfile?.analysis?.geoContext) {
+        updateGeoContextDisplay(state.sessionMatchProfile.analysis.geoContext);
+    } else {
+        updateGeoContextDisplay(null); // Hide the card if no data
+    }
 
     displayConversationState();
     showView(SELECTORS.mainView);
 }
 
 function handleGeoCalculationsResponse(message) {
-    if (state.sessionMatchProfile) {
-        state.sessionMatchProfile.memory.geoContextData = message.geoContext || null;
-    }
-    updateGeoContextDisplay(message.geoContext);
+    // This is now deprecated and handled by the main NLP analysis response.
+    // Kept here to prevent errors if the background script sends an old message.
+    DEBUG.log('DEPRECATED', 'handleGeoCalculationsResponse called', message);
 }
 
 function handleFinalPayloadResponse(message) {
@@ -390,7 +355,6 @@ function setupEventListeners() {
     }
 
     // Manual event listeners for elements not in UI_CONFIG
-    document.getElementById(SELECTORS.userLocationSelect)?.addEventListener('change', handleLocationChange);
     document.getElementById(SELECTORS.clearResponseBtn)?.addEventListener('click', () => {
         const area = document.getElementById(SELECTORS.responseArea);
         area.textContent = '';
@@ -421,37 +385,6 @@ function setupEventListeners() {
             const eventType = (el.type === 'range' || el.type === 'textarea') ? 'input' : 'change';
             el.addEventListener(eventType, regeneratePrompts);
         }
-    });
-}
-
-async function handleLocationChange() {
-    const select = document.getElementById(SELECTORS.userLocationSelect);
-    const choice = select.value;
-    let messageData = {
-        uuid: state.currentMatchUUID
-    };
-    if (choice === 'autodetect') {
-        try {
-            const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    timeout: 5000
-                });
-            });
-            messageData.userCoords = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-            };
-        } catch (error) {
-            showErrorInResponseArea(`Geolocation failed: ${error.message}`);
-            updateGeoContextDisplay(null);
-            return;
-        }
-    } else {
-        messageData.userLocation = USER_LOCATIONS[choice];
-    }
-    sendMessage({
-        action: "getGeoCalculations",
-        data: messageData
     });
 }
 

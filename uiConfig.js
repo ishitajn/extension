@@ -90,3 +90,44 @@ export const UI_CONFIG = {
 export const DEFAULTS = Object.fromEntries(
     Object.values(UI_CONFIG).map(config => [config.storageKey, config.defaultValue])
 );
+
+export const USER_LOCATIONS = {
+    'autodetect': {
+        name: 'Auto-Detect Location'
+    },
+    'charlotte': {
+        name: 'Charlotte, NC, USA',
+        lat: 35.2271,
+        lon: -80.8431,
+        timeZone: 'America/New_York',
+        country: 'United States'
+    },
+    'nyc': {
+        name: 'New York, NY, USA',
+        lat: 40.7128,
+        lon: -74.0060,
+        timeZone: 'America/New_York',
+        country: 'United States'
+    },
+    'la': {
+        name: 'Los Angeles, CA, USA',
+        lat: 34.0522,
+        lon: -118.2437,
+        timeZone: 'America/Los_Angeles',
+        country: 'United States'
+    },
+    'london': {
+        name: 'London, UK',
+        lat: 51.5072,
+        lon: -0.1276,
+        timeZone: 'Europe/London',
+        country: 'United Kingdom'
+    },
+    'sydney': {
+        name: 'Sydney, Australia',
+        lat: -33.8688,
+        lon: 151.2093,
+        timeZone: 'Australia/Sydney',
+        country: 'Australia'
+    },
+};

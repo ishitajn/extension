@@ -6,7 +6,7 @@ import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './uiHelpers.js';
 let modalState = {};
 let callbacks = {};
 let currentView = 'analysis'; // Start at the new first view
-const VIEWS = ['analysis', 'sexual', 'date', 'geo', 'memory', 'context', 'suggestions', 'final'];
+const VIEWS = ['analysis', 'sexual', 'date', 'memory', 'context', 'suggestions', 'final'];
 
 const CONVERSATION_STATES = ['OPENER', 'EARLY_CONVO', 'ACTIVE_CONVO', 'REENGAGING_DAY', 'REENGAGING_WEEK', 'REENGAGING_MONTH'];
 const INTENT_OPTIONS = ['questioning', 'planning', 'reacting_to_humor', 'storytelling', 'flirting_or_sexual'];
@@ -106,7 +106,6 @@ function renderView() {
             case 'analysis': html = renderAnalysisView(); break;
             case 'sexual': html = renderSexualAnalysisView(); break;
             case 'date': html = renderDateAnalysisView(); break;
-            case 'geo': html = renderGeoContextView(); break;
             case 'memory': html = renderMemoryView(); break;
             case 'context': html = renderContextView(); break;
             case 'suggestions': html = renderSuggestionsView(); break;
@@ -191,27 +190,6 @@ function renderDateAnalysisView() {
             <tr><td>Who Initiated?</td><td>${createSelect('date-initiator', 'dateAnalysis.whoInitiated', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
         </table>
         ${createCollapsibleJSON('View/Edit Raw Date Analysis', modalState.dateAnalysis)}
-    `;
-}
-
-function renderGeoContextView() {
-    const geoContext = modalState.geoContextData || {};
-    const userLocation = geoContext.userLocation || {};
-    const matchLocation = geoContext.matchLocation || {};
-
-    return `
-        <h3>View 4: Geo Context</h3>
-        <table class="payload-table">
-            <tr><td colspan="2" class="table-section-header"><strong>User Location</strong></td></tr>
-            <tr><td>Latitude</td><td>${createInput('geo-user-lat', 'geoContextData.userLocation.lat', userLocation.lat, 'number')}</td></tr>
-            <tr><td>Longitude</td><td>${createInput('geo-user-lon', 'geoContextData.userLocation.lon', userLocation.lon, 'number')}</td></tr>
-            <tr><td>Timezone</td><td>${createInput('geo-user-tz', 'geoContextData.userLocation.timeZone', userLocation.timeZone)}</td></tr>
-            <tr><td colspan="2" class="table-section-header"><strong>Match Location</strong></td></tr>
-            <tr><td>Latitude</td><td>${createInput('geo-match-lat', 'geoContextData.matchLocation.lat', matchLocation.lat, 'number')}</td></tr>
-            <tr><td>Longitude</td><td>${createInput('geo-match-lon', 'geoContextData.matchLocation.lon', matchLocation.lon, 'number')}</td></tr>
-            <tr><td>Timezone</td><td>${createInput('geo-match-tz', 'geoContextData.matchLocation.timeZone', matchLocation.timeZone)}</td></tr>
-        </table>
-        ${createCollapsibleJSON('View/Edit Raw Geo Context', modalState.geoContextData)}
     `;
 }
 

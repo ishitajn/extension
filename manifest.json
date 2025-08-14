@@ -13,7 +13,6 @@
     "*://*.bumble.com/*",
     "*://*.tinder.com/*",
     "https://nominatim.openstreetmap.org/*",
-	"https://timeapi.io/*",
     "http://localhost:*/*"
   ],
   "background": {
