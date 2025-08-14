@@ -278,7 +278,7 @@ async function handleAITask(uuid, generationId, payload, port, options = {}) {
         const storedSettings = await chrome.storage.local.get(Object.keys(DEFAULTS));
         const settings = { ...DEFAULTS, ...storedSettings };
 
-        const responseText = await fetchLocalLlamaResponse(settings.local_llama_api_key, payload, settings, controller.signal);
+        const { responseText, usage } = await fetchLocalLlamaResponse(settings.local_llama_api_key, payload, settings, controller.signal);
 
         const currentState = await getGenerationState(uuid);
         if (currentState.generationId !== generationId) {
@@ -286,7 +286,6 @@ async function handleAITask(uuid, generationId, payload, port, options = {}) {
             return;
         }
 
-        const { responseText, usage } = await fetchLocalLlamaResponse(settings.local_llama_api_key, payload, settings, controller.signal);
         const finalResponse = options.onSuccess ? options.onSuccess(responseText) : cleanAIResponse(responseText);
 
         await setGenerationState(uuid, { isGenerating: false, response: finalResponse, generationStartTime: null, tokenCount: usage?.total_tokens }, port);
