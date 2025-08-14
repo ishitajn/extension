@@ -41,12 +41,6 @@
                         <button id="clear-response-btn" class="clear-btn hidden" title="Clear Response">&times;</button>
                     </div>
 
-                    <div id="refinement-actions" class="refinement-actions hidden">
-                        <button class="btn-refine" data-refine-type="funnier">Make it Funnier</button>
-                        <button class="btn-refine" data-refine-type="more direct">Be More Direct</button>
-                        <button class="btn-refine" data-refine-type="shorter">Make it Shorter</button>
-                    </div>
-
                     <div class="input-container">
                         <textarea id="custom-instruction" data-storage-key="customInstruction" placeholder="Add custom instructions... (e.g., ask about their dog)"></textarea>
                         <button id="clear-instruction-btn" class="clear-btn hidden" title="Clear Instruction">&times;</button>
@@ -84,7 +78,42 @@
                 <summary class="card-header">Tune Response</summary>
                 <div class="info-display" id="conversation-status-display">Status: Analyzing...</div>
                 <div class="card-content" id="tune-response-controls">
-                    <!-- Dynamic controls will be rendered here by popup.js -->
+                    <div class="control-group">
+                        <label for="flirty-slider" class="label-with-info">
+                            <span>Flirtiness</span>
+                            <span class="value-label" id="flirty-value-label">60</span>
+                        </label>
+                        <input type="range" id="flirty-slider" data-storage-key="flirtyValue" min="0" max="100" step="1" value="60">
+                    </div>
+                    <div class="control-group">
+                        <label for="length-slider" class="label-with-info">
+                            <span>Length</span>
+                            <span class="value-label" id="length-value-label">30</span>
+                        </label>
+                        <input type="range" id="length-slider" data-storage-key="lengthValue" min="0" max="100" step="1" value="30">
+                    </div>
+                    <div class="control-group stacked">
+                        <label for="linguistic-style-select">Linguistic Style</label>
+                        <select id="linguistic-style-select" data-storage-key="linguisticStyle"></select>
+                    </div>
+                    <div class="control-group stacked">
+                        <label for="emoji-strategy-select">Emoji Strategy</label>
+                        <select id="emoji-strategy-select" data-storage-key="emojiStrategy"></select>
+                    </div>
+                    <div class="control-group">
+                        <label for="temperature-slider" class="label-with-info">
+                            <span>Creativity (Temperature)</span>
+                            <span class="value-label" id="temperature-value-label">0.5</span>
+                        </label>
+                        <input type="range" id="temperature-slider" data-storage-key="modelTemperature" min="0" max="1" step="0.05" value="0.5">
+                    </div>
+                    <div class="control-group">
+                        <label for="top-p-slider" class="label-with-info">
+                            <span>Focus (Top-P)</span>
+                            <span class="value-label" id="top-p-value-label">1.00</span>
+                        </label>
+                        <input type="range" id="top-p-slider" data-storage-key="topPValue" min="0.1" max="1" step="0.05" value="1.0">
+                    </div>
                 </div>
             </details>
 
@@ -138,7 +167,6 @@
             <div class="card">
                 <div class="card-header">Connection Details</div>
                 <div class="card-content">
-                    <div class="control-group stacked"><label for="nlpUrl">NLP Service URL</label><input type="text" id="nlpUrl" data-storage-key="nlpUrl"></div>
                     <div class="control-group stacked"><label for="localLlamaUrl">LLM API URL</label><input type="text" id="localLlamaUrl" data-storage-key="local_llama_url"></div>
                     <div class="control-group stacked"><label for="localModelName">Model Name</label><input type="text" id="localModelName" data-storage-key="local_model_name"></div>
                     <div class="control-group stacked"><label for="localLlamaApiKey">API Key (Optional)</label><input type="text" id="localLlamaApiKey" data-storage-key="local_llama_api_key"></div>

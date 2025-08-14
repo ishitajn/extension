@@ -15,9 +15,17 @@ function getLengthDescription(v) {
     if (v < 80) return "A short paragraph";
     return "A long paragraph";
 }
-function getEmojiInstruction(v) {
-    return `Use a ${v} amount of emojis.`;
+function getEmojiInstruction(strategy) {
+    const instructions = {
+        'auto': 'Use a natural and appropriate amount of emojis based on the context.',
+        'friendly': 'Use a few friendly emojis like 😊 or 👋.',
+        'playful': 'Use more playful and expressive emojis like 😂, 🎉, or 😉.',
+        'bold': 'Use bold and confident emojis like 🔥, 💯, or 😏.',
+        'no_emoji': 'Do not use any emojis.'
+    };
+    return instructions[strategy] || instructions['auto'];
 }
+
 function getStyleDescription(v) {
     const styleMap = {
         'auto': '<strong>Auto:</strong> Adapts to the match’s last message.',
@@ -58,13 +66,94 @@ function hideDebugModal() {
 }
 // -- END FROM-SCRATCH IMPLEMENTATION --
 
+async function getMatchUUID(name, profile) {
+    const safeName = name || 'unknown_name';
+    const safeProfile = profile || 'no_profile';
+    const identifier = `${safeName.trim()}-${safeProfile.trim().substring(0, 100)}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(identifier);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function constructLlmPayload(uiSettings, scrapedData) {
+    // 1. Construct System Prompt
+    const systemPromptParts = [
+        "You are Wingman AI, a witty and charming dating assistant. Your primary goal is to help the user craft compelling, engaging, and authentic-sounding messages for dating apps.",
+        "You must generate ONLY the message text as a response, without any extra commentary, labels, or quotation marks.",
+        "NEVER reveal that you are an AI.",
+        `The user's profile is as follows: \"${uiSettings.myProfile}\". Your responses should reflect this persona.`,
+    ];
+
+    const lengthDesc = getLengthDescription(uiSettings.lengthValue);
+    systemPromptParts.push(`- Message Length: Your response should be concise, approximately ${lengthDesc}.`);
+
+    const toneDesc = getToneDescription(uiSettings.flirtyValue);
+    systemPromptParts.push(`- Tone: The tone should be ${toneDesc}.`);
+
+    if (uiSettings.linguisticStyle !== 'auto') {
+        systemPromptParts.push(`- Linguistic Style: Adopt a ${uiSettings.linguisticStyle} style.`);
+    }
+
+    const emojiInstruction = getEmojiInstruction(uiSettings.emojiStrategy);
+    systemPromptParts.push(`- Emojis: ${emojiInstruction}`);
+
+    if (uiSettings.endWithQuestion) {
+        systemPromptParts.push("- Goal: Ensure the message ends with a question to encourage a reply.");
+    }
+
+    if (uiSettings.strictGoalOverride) {
+        systemPromptParts.push("- Strict Goal: The primary goal is to get a number or suggest a date. Be direct and confident about it if the conversation allows.");
+    }
+
+    const systemPrompt = systemPromptParts.join('\\n');
+
+    // 2. Construct User Prompt
+    const userPromptParts = [
+        "## Context for Generation",
+        `Match's Name: ${scrapedData.theirName}`,
+        `Match's Profile:\\n${scrapedData.theirProfile}`,
+    ];
+
+    if (scrapedData.conversationHistory && scrapedData.conversationHistory.length > 0 && !uiSettings.newTopic) {
+        const formattedHistory = scrapedData.conversationHistory
+            .map(msg => `${msg.role === 'user' ? 'Me' : scrapedData.theirName}: \"${msg.content}\"`)
+            .join('\\n');
+        userPromptParts.push(`\\nConversation History (most recent last):\\n${formattedHistory}`);
+    } else {
+        userPromptParts.push("\\nThis is the first message (opener). Generate a compelling opener based on their profile.");
+    }
+
+    if (uiSettings.customInstruction) {
+        userPromptParts.push(`\\nSpecial Instructions from User: \"${uiSettings.customInstruction}\"`);
+    }
+
+    userPromptParts.push("\\n## Task\\nBased on all the context, generate the next message I should send.");
+
+    const userPrompt = userPromptParts.join('\\n\\n');
+
+    // 3. Construct Payload
+    const payload = {
+        model: uiSettings.local_model_name,
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+        ],
+        temperature: uiSettings.modelTemperature,
+        top_p: uiSettings.topPValue,
+    };
+
+    DEBUG.log('PROMPT', 'Constructed LLM Payload', payload);
+    return payload;
+}
+
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-POPUP-${category.toUpperCase()}] ${message}`, data ?? ''),
     error: (category, message, error = null) => console.error(`[WINGMAN-POPUP-${category.toUpperCase()}-ERROR] ${message}`, error ?? ''),
 };
 
 const DEFAULTS = {
-    nlpUrl: 'http://localhost:8000',
     costPer1kTokens: 0.002,
     flirtyValue: 60,
     lengthValue: 30,
@@ -177,29 +266,11 @@ const SELECTORS = {
     localLlamaUrl: 'localLlamaUrl',
     localLlamaApiKey: 'localLlamaApiKey',
     localModelName: 'localModelName',
-    nlpUrl: 'nlpUrl',
     costPer1kTokens: 'costPer1kTokens',
     userLocationSelect: 'user-location-select',
     myProfileSetting: 'my-profile-setting',
     infoTooltip: 'info-tooltip',
     responseTimer: 'response-timer',
-    geoContextCard: 'geo-context-card',
-    geoUserName: 'geo-user-name',
-    geoMatchName: 'geo-match-name',
-    userLocation: 'user-location',
-    matchLocation: 'match-location',
-    userTime: 'user-time',
-    matchTime: 'match-time',
-    userTimeOfDay: 'user-time-of-day',
-    matchTimeOfDay: 'match-time-of-day',
-    userTimezone: 'user-timezone',
-    matchTimezone: 'match-timezone',
-    userCountry: 'user-country',
-    matchCountry: 'match-country',
-    timeDifference: 'time-difference',
-    distanceInfo: 'distance-info',
-    dateIdeaBtn: 'date-idea-btn',
-    refinementActions: 'refinement-actions',
 };
 
 const state = {
@@ -280,12 +351,6 @@ function setupPort() {
     port.onMessage.addListener((message) => {
         DEBUG.log('PORT', 'Message received from background', message);
         switch (message.action) {
-        case 'nlpAnalysisResponse':
-            handleNlpAnalysisResponse(message);
-            break;
-        case 'geoCalculationsResponse':
-            handleGeoCalculationsResponse(message);
-            break;
         case 'generationUpdate':
             if (message.uuid === state.currentMatchUUID) {
                 syncUIWithState(message.state);
@@ -308,8 +373,6 @@ async function initializePopup() {
     setupEventListeners();
     addDirtyListeners(); // Add listeners for UI changes
     setupPort();
-    await loadUiOptions(); // Load dynamic UI configuration
-    renderDynamicUI(); // Render the dynamic controls
     await loadAndApplySettings();
     await historyManager.render();
     await refreshDataAndUI();
@@ -384,12 +447,22 @@ if (!pageData || pageData.error) {
 }
 
 state.sessionScrapedData = pageData;
-sendMessage({
-    action: "getNlpAnalysis",
-    data: {
-        scrapedData: pageData
-    }
-});
+
+// Generate UUID locally now
+state.currentMatchUUID = await getMatchUUID(pageData.theirName, pageData.theirProfile);
+
+// Load settings for this specific match
+await loadAndApplySettings();
+
+// Update UI state directly without waiting for backend analysis
+displayConversationState();
+showView(SELECTORS.mainView);
+updateMainButtonState();
+
+// Trigger geo-calculation if enabled
+if (document.getElementById(SELECTORS.geoContextToggle).checked) {
+    await handleLocationChange();
+}
 
 } catch (e) {
     showError('Initialization Failed', e.message);
@@ -400,30 +473,7 @@ sendMessage({
 }
 }
 
-async function handleNlpAnalysisResponse(message) {
-    if (message.error) {
-        showError('NLP Analysis Failed', message.error);
-        return;
-    }
-
-    state.sessionMatchProfile = message.matchProfile;
-    state.currentMatchUUID = message.matchProfile.uuid;
-    state.isDirty = false; // Reset dirty state after analysis
-
-    await loadAndApplySettings();
-    await handleLocationChange();
-
-    displayConversationState();
-    showView(SELECTORS.mainView);
-    updateMainButtonState(); // Update button text
-}
-
-function handleGeoCalculationsResponse(message) {
-    if (state.sessionMatchProfile) {
-        state.sessionMatchProfile.memory.geoContextData = message.geoContext || null;
-    }
-    updateGeoContextDisplay(message.geoContext);
-}
+// handleNlpAnalysisResponse is removed as analysis is now done on the frontend.
 
 // Obsolete: The backend now handles prompt generation.
 // function handleFinalPayloadResponse(message) { ... }
@@ -482,107 +532,9 @@ function renderCostAnalysis(tokenCount) {
     section.hidden = false;
 }
 
-// --- Dynamic UI Rendering ---
-
-async function loadUiOptions() {
-    const cachedOptions = await chrome.storage.local.get('uiOptions');
-    if (cachedOptions.uiOptions && Array.isArray(cachedOptions.uiOptions)) {
-        state.uiOptions = cachedOptions.uiOptions;
-        DEBUG.log('UI', 'Loaded UI options from cache.');
-        return;
-    }
-
-    try {
-        const settings = await chrome.storage.local.get({ nlpUrl: DEFAULTS.nlpUrl });
-        if (!settings.nlpUrl) throw new Error("NLP Service URL is not set.");
-
-        const response = await fetch(`${settings.nlpUrl}/api/v1/options/all`);
-        if (!response.ok) throw new Error(`Failed to fetch UI options: ${response.status}`);
-
-        const options = await response.json();
-        state.uiOptions = options;
-        await chrome.storage.local.set({ uiOptions: options });
-        DEBUG.log('UI', 'Fetched and cached UI options from server.');
-    } catch (error) {
-        showError('UI Load Failed', `Could not load dynamic UI controls. Using fallback. Error: ${error.message}`);
-        // In case of failure, we could potentially have hardcoded fallback options here.
-        // For now, the UI will just be empty.
-    }
-}
-
-function renderDynamicUI() {
-    const container = document.getElementById('tune-response-controls');
-    if (!container) return;
-
-    container.innerHTML = ''; // Clear any existing controls
-
-    const uiControlsGroup = state.uiOptions.find(group => group.groupName === 'UI Controls');
-
-    if (uiControlsGroup && uiControlsGroup.parameters) {
-        uiControlsGroup.parameters.forEach(param => {
-            const control = createControlElement(param);
-            if (control) container.appendChild(control);
-        });
-    } else {
-        DEBUG.error('UI', 'Could not find "UI Controls" group in options from API.');
-        container.textContent = 'Could not load UI controls.';
-    }
-
-    // Re-attach listeners for the new dynamic elements
-    addDirtyListeners();
-    // Note: Slider listeners are attached in loadAndApplySettings after values are set.
-}
-
-function createControlElement(param) {
-    const controlGroup = document.createElement('div');
-
-    let elementHtml = '';
-    let labelHtml = '';
-
-    // Use description for the main label text as displayName is not in the API doc
-    const mainLabelText = param.description.split('.')[0];
-
-    switch (param.uiType) {
-        case 'slider':
-            controlGroup.className = 'control-group';
-            labelHtml = `<label for="${param.name}" class="label-with-info">
-                <span>${mainLabelText}</span>
-                <span class="value-label" id="${param.name}-value-label">${param.defaultValue}</span>
-            </label>`;
-            elementHtml = `<input type="range" id="${param.name}" data-storage-key="${param.name}"
-                           min="${param.constraints.min}" max="${param.constraints.max}"
-                           step="${param.constraints.step}" value="${param.defaultValue}">`;
-            controlGroup.innerHTML = labelHtml + elementHtml;
-            break;
-
-        case 'dropdown':
-            controlGroup.className = 'control-group stacked';
-            labelHtml = `<label for="${param.name}">${mainLabelText}</label>`;
-            const optionsHtml = param.constraints.allowedValues.map(opt =>
-                `<option value="${opt.value}" ${opt.value === param.defaultValue ? 'selected' : ''}>${opt.description}</option>`
-            ).join('');
-            elementHtml = `<select id="${param.name}" data-storage-key="${param.name}">${optionsHtml}</select>`;
-            controlGroup.innerHTML = labelHtml + elementHtml;
-            break;
-
-        case 'checkbox':
-            // Checkboxes are handled by the hardcoded "Quick Toggles" for now
-            // as they are not part of the "Tune Response" card in the new design.
-            // This case is added for future-proofing if their location changes.
-            controlGroup.className = 'toggle-switch';
-            elementHtml = `<label>
-                <input type="checkbox" id="${param.name}" data-storage-key="${param.name}" ${param.defaultValue ? 'checked' : ''}>
-                <span>${mainLabelText}</span>
-            </label>`;
-            controlGroup.innerHTML = elementHtml;
-            break;
-
-        default:
-            DEBUG.log('UI', `Unknown control uiType received from API: ${param.uiType}`);
-            return null; // Don't render unknown control types
-    }
-    return controlGroup;
-}
+// --- Dynamic UI Rendering (REMOVED) ---
+// The UI controls are now static and defined in popup.html.
+// The functions loadUiOptions, renderDynamicUI, and createControlElement have been removed.
 
 function startHeartbeat() {
     stopHeartbeat();
@@ -623,7 +575,6 @@ function setupEventListeners() {
     document.getElementById('main-view')?.addEventListener('change', handleSettingChange);
     document.getElementById('settings-view')?.addEventListener('input', handleSettingChange);
     document.getElementById('settings-view')?.addEventListener('change', handleSettingChange);
-    document.getElementById(SELECTORS.userLocationSelect)?.addEventListener('change', handleLocationChange);
     document.getElementById(SELECTORS.clearResponseBtn)?.addEventListener('click', () => {
         const area = document.getElementById(SELECTORS.responseArea);
         area.textContent = '';
@@ -638,8 +589,6 @@ function setupEventListeners() {
                 bubbles: true
             }));
     });
-    document.getElementById(SELECTORS.dateIdeaBtn)?.addEventListener('click', handleDateIdeaClick);
-    document.getElementById(SELECTORS.refinementActions)?.addEventListener('click', handleRefinementClick);
 
     populateSelect(SELECTORS.linguisticStyleSelect, LINGUISTIC_STYLES.map(s => ({
                 value: s,
@@ -655,37 +604,6 @@ function setupEventListeners() {
             })));
 }
 
-async function handleLocationChange() {
-    const select = document.getElementById(SELECTORS.userLocationSelect);
-    const choice = select.value;
-    let messageData = {
-        uuid: state.currentMatchUUID
-    };
-    if (choice === 'autodetect') {
-        try {
-            const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    timeout: 5000
-                });
-            });
-            messageData.userCoords = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-            };
-        } catch (error) {
-            showErrorInResponseArea(`Geolocation failed: ${error.message}`);
-            updateGeoContextDisplay(null);
-            return;
-        }
-    } else {
-        messageData.userLocation = USER_LOCATIONS[choice];
-    }
-    sendMessage({
-        action: "getGeoCalculations",
-        data: messageData
-    });
-}
-
 function updateClearButtonVisibility(inputEl, clearBtnEl) {
     const hasContent = (inputEl.value && inputEl.value.trim() !== '') || (inputEl.textContent && inputEl.textContent.trim() !== '');
     clearBtnEl.classList.toggle('hidden', !hasContent);
@@ -697,7 +615,6 @@ async function handleSettingChange(event) {
         updateClearButtonVisibility(el, document.getElementById(SELECTORS.clearInstructionBtn));
     } else if (el.id === SELECTORS.responseArea) {
         updateClearButtonVisibility(el, document.getElementById(SELECTORS.clearResponseBtn));
-        document.getElementById(SELECTORS.refinementActions).classList.add('hidden');
     }
     const key = el.dataset.storageKey || (el.id === SELECTORS.responseArea ? 'lastResponse' : null);
     if (!key)
@@ -925,43 +842,6 @@ function getTooltipContent(tooltipId) {
     }
 }
 
-async function updateGeoContextDisplay(geoContextData) {
-    if (!state.sessionMatchProfile || !state.sessionScrapedData)
-        return;
-
-    const { myName } = state.sessionScrapedData;
-    const { theirName, matchLocation } = state.sessionMatchProfile.metadata;
-    const settings = await chrome.storage.local.get('userLocationChoice');
-    const userLocationData = USER_LOCATIONS[settings.userLocationChoice || 'autodetect'];
-    const card = document.getElementById(SELECTORS.geoContextCard);
-
-    if (card)
-        card.hidden = !geoContextData;
-    if (!geoContextData)
-        return;
-
-    const dataMap = {
-        geoUserName: myName || 'User',
-        geoMatchName: theirName || 'Match',
-        userLocation: userLocationData.name.split(',')[0],
-        matchLocation: matchLocation,
-        userTimeOfDay: geoContextData.userTimeOfDay,
-        matchTimeOfDay: geoContextData.matchTimeOfDay,
-        userTimezone: geoContextData.userTimeZoneName || userLocationData.timeZone,
-        matchCountry: geoContextData.matchCountry,
-        userCountry: geoContextData.userCountry || userLocationData.country,
-        timeDifference: geoContextData.timeZoneDifference !== null ? `${geoContextData.timeZoneDifference} hour(s)` : 'N/A',
-        distanceInfo: `${geoContextData.distance.miles} miles / ${geoContextData.distance.km} km`,
-        countryDifference: `${geoContextData.countryDifference}`
-    };
-
-    Object.entries(dataMap).forEach(([id, text]) => {
-        const el = document.getElementById(SELECTORS[id]);
-        if (el)
-            el.textContent = text || 'N/A';
-    });
-}
-
 function startTimer(startTime) {
     stopTimer();
     if (!startTime)
@@ -1000,37 +880,44 @@ async function handleGenerateClick() {
     const button = document.getElementById(SELECTORS.generateBtn);
     if (!button || button.disabled) return;
 
-    if (!state.sessionMatchProfile || !state.currentMatchUUID || !state.sessionScrapedData) {
-        showErrorInResponseArea("Error: Core data not loaded. Please try refreshing.");
+    if (!state.currentMatchUUID || !state.sessionScrapedData) {
+        showErrorInResponseArea("Error: Core data not loaded. Please try refreshing the page.");
         return;
     }
 
-    // This function now exclusively handles regeneration.
     const uiSettings = await gatherUiSettings();
 
-    // The debug mode logic might need to be re-evaluated.
     if (document.getElementById(SELECTORS.debugModeToggle).checked) {
-        alert("Debug mode needs to be updated for the new regeneration flow.");
+        const payload = constructLlmPayload(uiSettings, state.sessionScrapedData);
+        showNlpModal(payload, {
+            onGenerate: (editedPayload) => {
+                hideDebugModal();
+                setUIGeneratingState(true);
+                startTimer(Date.now());
+                sendMessage({
+                    action: "generateFinalResponse",
+                    data: {
+                        uuid: state.currentMatchUUID,
+                        payload: editedPayload,
+                        generationId: Date.now()
+                    }
+                });
+            }
+        });
         return;
     }
 
-    // Construct the complete scraped_data object for the regenerate call, as it needs user context.
-    const userData = await chrome.storage.local.get({ myName: '', myProfile: DEFAULTS.myProfile });
-    const completeScrapedData = {
-        ...state.sessionScrapedData,
-        myName: userData.myName,
-        myProfile: userData.myProfile
-    };
+    const payload = constructLlmPayload(uiSettings, state.sessionScrapedData);
 
     setUIGeneratingState(true);
     startTimer(Date.now());
 
     sendMessage({
-        action: "regeneratePrompts",
+        action: "generateFinalResponse",
         data: {
-            matchId: state.currentMatchUUID,
-            scrapedData: completeScrapedData,
-            uiSettings: uiSettings
+            uuid: state.currentMatchUUID,
+            payload: payload,
+            generationId: Date.now()
         }
     });
 }
@@ -1132,20 +1019,15 @@ function setUIGeneratingState(isGenerating) {
     const cancelBtn = document.getElementById(SELECTORS.cancelBtn);
     const copyBtn = document.getElementById(SELECTORS.copyBtn);
     const responseArea = document.getElementById(SELECTORS.responseArea);
-    const refinementActions = document.getElementById(SELECTORS.refinementActions);
-    const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
 
-    if (!generateBtn || !cancelBtn || !copyBtn || !responseArea || !refinementActions || !dateIdeaBtn)
+    if (!generateBtn || !cancelBtn || !copyBtn || !responseArea)
         return;
 
     generateBtn.disabled = isGenerating;
-    dateIdeaBtn.disabled = isGenerating;
-    document.querySelectorAll('.btn-refine').forEach(btn => btn.disabled = isGenerating);
 
     generateBtn.innerHTML = isGenerating ? 'Thinking...' : 'Generate';
     cancelBtn.classList.toggle('hidden', !isGenerating);
     copyBtn.classList.toggle('hidden', isGenerating);
-    refinementActions.classList.add('hidden');
 
     if (isGenerating) {
         responseArea.textContent = '';
@@ -1155,8 +1037,6 @@ function setUIGeneratingState(isGenerating) {
         responseArea.classList.add('loading');
         responseArea.classList.remove('error');
     } else {
-        dateIdeaBtn.disabled = false;
-        dateIdeaBtn.innerHTML = `<svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"></path></svg> Suggest a Date Idea`;
         responseArea.classList.remove('loading');
         if (!responseArea.textContent || responseArea.classList.contains('error')) {
             copyBtn.classList.add('hidden');
@@ -1169,7 +1049,7 @@ function updateUIAfterGeneration(result) {
     const copyBtn = document.getElementById(SELECTORS.copyBtn);
     const refinementActions = document.getElementById(SELECTORS.refinementActions);
 
-    if (!responseArea || !copyBtn || !refinementActions)
+    if (!responseArea || !copyBtn)
         return;
 
     if (result?.reply) {
@@ -1180,7 +1060,6 @@ function updateUIAfterGeneration(result) {
             }));
         responseArea.classList.remove('error');
         copyBtn.classList.remove('hidden');
-        refinementActions.classList.remove('hidden');
         handleCopyClick();
 
         historyManager.add(cleanReply);
@@ -1225,70 +1104,19 @@ function showErrorInResponseArea(message) {
 }
 
 function displayConversationState() {
-    if (!state.sessionMatchProfile?.analysis)
+    if (!state.sessionScrapedData?.conversationHistory) {
+        document.getElementById(SELECTORS.conversationStatusDisplay).textContent = 'Status: Unknown';
         return;
-    const analysis = state.sessionMatchProfile.analysis;
-    const convoState = analysis.conversationState;
-    const dateArcPhase = analysis.memory.dateArcPhase;
+    }
+
+    const convoState = determineConversationState(state.sessionScrapedData.conversationHistory);
 
     const stateDisplayMap = {
         'OPENER': 'Status: New Conversation (Opener)',
         'EARLY_CONVO': 'Status: Early Conversation',
         'ACTIVE_CONVO': 'Status: Active Conversation',
-        'REENGAGING_DAY': 'Status: Re-engaging (1-7 day pause)',
-        'REENGAGING_WEEK': 'Status: Re-engaging (1-4 week pause)',
-        'REENGAGING_MONTH': 'Status: Re-engaging (1+ month pause)'
     };
     const statusEl = document.getElementById(SELECTORS.conversationStatusDisplay);
     if (statusEl)
         statusEl.textContent = stateDisplayMap[convoState] || 'Status: Unknown';
-
-    const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
-    if (dateIdeaBtn) {
-        const showButton = dateArcPhase === 'escalation' || dateArcPhase === 'planning';
-        dateIdeaBtn.classList.toggle('hidden', !showButton);
-    }
-}
-
-function handleDateIdeaClick() {
-    if (!state.sessionMatchProfile || !state.currentMatchUUID) {
-        showErrorInResponseArea("Error: Match profile data not loaded. Please refresh.");
-        return;
-    }
-    setUIGeneratingState(true);
-    startTimer(Date.now());
-
-    sendMessage({
-        action: 'getAIDateIdea',
-        data: {
-            uuid: state.currentMatchUUID,
-            generationId: Date.now()
-        }
-    });
-}
-
-function handleRefinementClick(event) {
-    const btn = event.target.closest('.btn-refine');
-    if (!btn)
-        return;
-
-    const refinementType = btn.dataset.refineType;
-    const responseArea = document.getElementById(SELECTORS.responseArea);
-    const originalResponse = responseArea.textContent;
-
-    if (!refinementType || !originalResponse)
-        return;
-
-    setUIGeneratingState(true);
-    startTimer(Date.now());
-
-    sendMessage({
-        action: 'refineAIResponse',
-        data: {
-            uuid: state.currentMatchUUID,
-            originalResponse,
-            refinementType,
-            generationId: Date.now()
-        }
-    });
 }
