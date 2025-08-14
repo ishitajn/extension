@@ -15,7 +15,7 @@
  * This function is injected and executed directly on the page.
  * @returns {object} An object containing all scraped data or an error.
  */
-window.scrapeTinderPage = function() {
+export function scrapeTinderPage() {
     console.log('[Tinder Scraper] Starting scrapeTinderPage function.');
     try {
         // ... (The entire inner logic of scrapeTinderPage remains exactly the same) ...
@@ -230,7 +230,7 @@ window.scrapeTinderPage = function() {
     }
 }
 
-window.pasteTextIntoTinderInput = function(textToPaste) {
+export function pasteTextIntoTinderInput(textToPaste) {
     const messageInput = document.querySelector('textarea[placeholder="Type a message"]');
     if (messageInput) {
         messageInput.value = textToPaste;
@@ -244,7 +244,7 @@ window.pasteTextIntoTinderInput = function(textToPaste) {
 // BUMBLE SCRAPER & PASTER
 // ===================================================================================
 
-window.scrapeBumblePage = function() {
+export function scrapeBumblePage() {
     console.log('[Bumble Scraper] Starting scrapeBumblePage function.');
     try {
         // ... (The entire inner logic of scrapeBumblePage remains exactly the same) ...
@@ -458,7 +458,7 @@ window.scrapeBumblePage = function() {
     }
 }
 
-window.pasteTextIntoBumbleInput = function(textToPaste) {
+export function pasteTextIntoBumbleInput(textToPaste) {
     const messageInput = document.querySelector('textarea[data-qa-role="message-input"]') || document.querySelector('textarea.textarea__input[placeholder^="Start chatting..."]');
     if (messageInput) {
         messageInput.value = textToPaste;
