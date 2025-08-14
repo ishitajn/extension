@@ -1,4 +1,4 @@
-import { getToneDescription, getLengthDescription, getStyleDescription, getEmojiInstruction } from '../conversationHelpers.js';
+import { getToneDescription, getLengthDescription, getStyleDescription, getEmojiInstruction } from '../uiHelpers.js';
 import { validatePromptInputs, sanitizeInputs, ContentBuilder, CONTENT_PRIORITIES } from './promptUtils.js';
 
 export function buildTaskPrompt(instructions, data, conversationAnalysis) {

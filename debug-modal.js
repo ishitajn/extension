@@ -3,7 +3,6 @@
 import { generatePrompts } from './prompts.js';
 import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './uiHelpers.js';
 
-/** @type {import('./conversationHelpers.js').GenerationData} */
 let modalState = {};
 let callbacks = {};
 let currentView = 'analysis'; // Start at the new first view
@@ -525,7 +524,7 @@ function updateNavButtons() {
 }
 
 /**
- * @param {import('./conversationHelpers.js').GenerationData} initialData
+ * @param {object} initialData
  * @param {object} cbs
  */
 export function showNlpModal(initialData, cbs) {
