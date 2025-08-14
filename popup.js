@@ -358,8 +358,6 @@ function stopHeartbeat() {
 }
 
 function setupEventListeners() {
-    window.addEventListener('focus', refreshDataAndUI);
-
     // Main buttons
     document.getElementById(SELECTORS.generateBtn)?.addEventListener('click', handleGenerateClick);
     document.getElementById(SELECTORS.copyBtn)?.addEventListener('click', handleCopyClick);
