@@ -1,6 +1,4 @@
-import { TEMPLATES } from './templates.js';
-import { validatePromptInputs, sanitizeInputs } from './validator.js';
-import { ContentBuilder, CONTENT_PRIORITIES } from './contentPrioritizer.js';
+import { TEMPLATES, validatePromptInputs, sanitizeInputs, ContentBuilder, CONTENT_PRIORITIES } from './promptUtils.js';
 
 export function buildContextPrompt(data, conversationAnalysis) {
     try {

@@ -1,6 +1,5 @@
 import { getToneDescription, getLengthDescription, getStyleDescription, getEmojiInstruction } from '../conversationHelpers.js';
-import { validatePromptInputs, sanitizeInputs } from './validator.js';
-import { ContentBuilder, CONTENT_PRIORITIES } from './contentPrioritizer.js';
+import { validatePromptInputs, sanitizeInputs, ContentBuilder, CONTENT_PRIORITIES } from './promptUtils.js';
 
 export function buildTaskPrompt(instructions, data, conversationAnalysis) {
     try {
