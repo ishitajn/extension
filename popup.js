@@ -1,13 +1,44 @@
 // popup.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { scrapeBumblePage, pasteTextIntoBumbleInput, scrapeTinderPage, pasteTextIntoTinderInput } from './content-scraper.js';
 
-// -- FROM-SCRATCH IMPLEMENTATION OF MISSING HELPERS --
+// -- FROM-SCRATCH IMPLEMENTATION OF MISSING HELPERS (v2 - Refined) --
 const LINGUISTIC_STYLES = ['auto', 'casual', 'witty', 'playful', 'direct', 'intellectual', 'poetic', 'charming', 'sarcastic', 'sexual', 'mysterious'];
-function getToneDescription(v) { return `Tone: ${v}`; }
-function getLengthDescription(v) { return `Length: ${v}`; }
-function getEmojiInstruction(v) { return `Emoji: ${v}`; }
-function getStyleDescription(v) { return `Style: ${v}`; }
-function determineConversationState(h) { return 'ACTIVE_CONVO'; }
+function getToneDescription(v) {
+    if (v < 20) return "Friendly & Casual";
+    if (v < 50) return "Warm & Engaging";
+    if (v < 80) return "Flirty & Playful";
+    return "Bold & Daring";
+}
+function getLengthDescription(v) {
+    if (v < 20) return "A few words";
+    if (v < 50) return "1-2 sentences";
+    if (v < 80) return "A short paragraph";
+    return "A long paragraph";
+}
+function getEmojiInstruction(v) {
+    return `Use a ${v} amount of emojis.`;
+}
+function getStyleDescription(v) {
+    const styleMap = {
+        'auto': '<strong>Auto:</strong> Adapts to the match’s last message.',
+        'casual': '<strong>Casual:</strong> Relaxed, everyday flow.',
+        'witty': '<strong>Witty:</strong> Clever wordplay and banter.',
+        'playful': '<strong>Playful:</strong> Fun, cheeky vibe.',
+        'direct': '<strong>Direct:</strong> Straightforward and confident.',
+        'intellectual': '<strong>Intellectual:</strong> Thoughtful and deep.',
+        'poetic': '<strong>Poetic:</strong> Vivid and expressive language.',
+        'charming': '<strong>Charming:</strong> Polished and charismatic.',
+        'sarcastic': '<strong>Sarcastic:</strong> Dry humor and irony.',
+        'sexual': '<strong>Sexual:</strong> Bold and evocative.',
+        'mysterious': '<strong>Mysterious:</strong> Enigmatic and intriguing.'
+    };
+    return styleMap[v] || "Select a style.";
+}
+function determineConversationState(h) {
+    if (!h || h.length === 0) return 'OPENER';
+    if (h.length < 5) return 'EARLY_CONVO';
+    return 'ACTIVE_CONVO';
+}
 function showNlpModal(data, callbacks) { console.log("showNlpModal called with:", data); alert("Debug Mode Activated. See console for details."); }
 function hideDebugModal() { console.log("hideDebugModal called."); }
 // -- END FROM-SCRATCH IMPLEMENTATION --

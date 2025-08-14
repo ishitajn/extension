@@ -10,6 +10,10 @@
         "notifications",
         "geolocation"
     ],
+    "host_permissions": [
+        "https://timeapi.io/*",
+        "https://nominatim.openstreetmap.org/*"
+    ],
     "optional_host_permissions": [
         "*://*/*"
     ],
@@ -23,6 +27,7 @@
         "128": "icons/icon128.png"
     },
     "background": {
-        "service_worker": "background.js"
+        "service_worker": "background.js",
+        "type": "module"
     }
 }

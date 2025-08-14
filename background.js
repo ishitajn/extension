@@ -3,55 +3,67 @@
 // -- FROM-SCRATCH IMPLEMENTATION OF MISSING HELPERS --
 
 /**
- * FROM-SCRATCH-BEST-EFFORT
- * A simplified, from-scratch implementation of the prompt generation logic.
+ * FROM-SCRATCH-BEST-EFFORT (v2 - Refined)
+ * A more dynamic from-scratch implementation of the prompt generation logic.
  */
 function generatePrompts(data) {
     const systemMessage = `You are Wingman AI. Your goal is to help the user write a message to their match, ${data.theirName}.
+You must follow the user's Task Instructions precisely.
+The user's profile is: ${data.myProfile}
+The match's profile is: ${data.theirProfile}
+This is the conversation analysis: ${JSON.stringify(data.conversationAnalysis, null, 2)}`;
 
-User's Profile:
-${data.myProfile}
-
-Match's Profile:
-${data.theirProfile}
-
-Conversation Analysis:
-${JSON.stringify(data.conversationAnalysis, null, 2)}
-
-Task Instructions:
-${JSON.stringify(data.taskInstructions, null, 2)}`;
-
-    const userMessage = `Generate a message based on the provided context and instructions.`;
+    const userMessage = `My primary goal is: "${data.taskInstructions.goal || 'Just continue the conversation naturally.'}"
+Based on all the provided context, generate the ideal message.`;
 
     return { systemMessage, userMessage };
 }
 
 /**
- * FROM-SCRATCH-BEST-EFFORT
- * A mock implementation for conversation analysis. Returns a hardcoded object.
+ * FROM-SCRATCH-BEST-EFFORT (v2 - Refined)
+ * A more dynamic from-scratch implementation for conversation analysis.
  */
 function runFullConversationAnalysis(history, memory) {
-    console.log("Called mock runFullConversationAnalysis. Returning mock data.");
+    console.log("Called refined runFullConversationAnalysis.");
+    const lastMessage = history.length > 0 ? history[history.length - 1] : null;
+
+    let isDirectQuestion = false;
+    let isLowEffort = false;
+    if (lastMessage && lastMessage.role === 'assistant') { // Analysis is on the match's message
+        if(lastMessage.content.includes('?')) {
+            isDirectQuestion = true;
+        }
+        if(lastMessage.content.split(' ').length < 4) {
+            isLowEffort = true;
+        }
+    }
+
     return {
-        updatedMemory: memory,
+        updatedMemory: memory, // Don't modify memory in this mock implementation
         lastMessageAnalysis: {
-            isDirectQuestion: false,
-            isLowEffort: false,
-            isSarcastic: false,
-            isAmbiguous: false,
-            isVulnerable: false,
-            valence: 0,
-            arousal: 0,
-            intents: ['questioning']
+            isDirectQuestion,
+            isLowEffort,
+            isSarcastic: false, // Mocked
+            isAmbiguous: false, // Mocked
+            isVulnerable: false, // Mocked
+            valence: 0, // Mocked
+            arousal: 0, // Mocked
+            intents: isDirectQuestion ? ['questioning'] : ['storytelling'] // Basic intent logic
         }
     };
 }
 
 /**
- * FROM-SCRATCH-BEST-EFFORT
- * Mock implementation.
+ * FROM-SCRATCH-BEST-EFFORT (v2 - Refined)
+ * A more dynamic from-scratch implementation.
  */
 function determineConversationState(history) {
+    if (!history || history.length === 0) {
+        return 'OPENER';
+    }
+    if (history.length < 5) {
+        return 'EARLY_CONVO';
+    }
     return 'ACTIVE_CONVO';
 }
 
