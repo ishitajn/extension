@@ -1,12 +1,11 @@
 // src/prompts.js (Corrected with Consistent Data Structuring)
 
-import { getTimeContext } from './conversationHelpers.js';
+import { getTimeContext } from './uiHelpers.js';
 import { getSystemPrompt } from './prompts/systemPrompt.js';
 import { buildContextPrompt } from './prompts/contextPrompt.js';
 import { buildTaskPrompt } from './prompts/taskPrompt.js';
 
 /**
- * @param {import('./conversationHelpers.js').GenerationData} data
  * @returns {{systemMessage: string, userMessage: string}}
  */
 export function generatePrompts(data) {
