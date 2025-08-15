@@ -1,6 +1,7 @@
 // background.js (Re-architected for Manifest V3 Robustness with Heartbeat)
 import { generatePrompts } from './prompts.js';
 import { DEFAULTS, USER_LOCATIONS } from './uiConfig.js';
+import { transformAnalysis } from './dataTransformer.js';
 
 const DEBUG = {
     log: (category, message, data = null) => console.log(`[WINGMAN-BG-${category.toUpperCase()}] ${message}`, data ?? ''),
@@ -307,7 +308,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 const analysisResult = await nlpResponse.json();
                 // ---- END NEW ----
 
-                matchProfile.analysis = analysisResult;
+                matchProfile.analysis = transformAnalysis(analysisResult);
                 matchProfile.memory.lastCacheHash = newCacheHash;
                 matchProfile.metadata.lastUpdated = new Date().toISOString();
 
