@@ -424,7 +424,7 @@ function setupEventListeners() {
         // New editable analysis controls
         'analysis-convo-state-select', 'analysis-next-action-select',
         'analysis-intents-input', 'analysis-suppress-greeting-toggle',
-        'analysis-is-question-toggle', 'analysis-is-virtual-toggle'
+        'analysis-is-question-toggle'
     ];
 
     controlsToWatch.forEach(id => {
@@ -1034,7 +1034,6 @@ function displayConversationState() {
             document.getElementById('analysis-intents-input').value = analysis.lastMessageAnalysis?.intents?.join(', ') || '';
             document.getElementById('analysis-suppress-greeting-toggle').checked = analysis.suppressGreeting || false;
             document.getElementById('analysis-is-question-toggle').checked = analysis.lastMessageAnalysis?.isDirectQuestion || false;
-            document.getElementById('analysis-is-virtual-toggle').checked = analysis.dateAnalysis?.isVirtual || false;
         } else {
             analysisCard.hidden = true;
         }

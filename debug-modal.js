@@ -48,7 +48,7 @@ function createCheckbox(id, dataPath, checked) {
     return `<input type="checkbox" id="${id}" data-path="${dataPath}" ${checked ? 'checked' : ''} class="modal-input">`;
 }
 
-// FIX: Removed inline event handler to be CSP compliant.
+
 function createSlider(id, dataPath, value, min, max, step, labelMap) {
     const getLabel = (val) => {
         const numVal = parseFloat(val);
@@ -197,6 +197,9 @@ function renderAdvancedAnalysisView() {
 
         <details class="modal-payload-details" style="margin-top: 1rem;">
             <summary>Date Analysis</summary>
+            <table class="payload-table">
+                <tr><td>Is Virtual Date?</td><td>${createCheckbox('date-isVirtual', 'conversationAnalysis.dateAnalysis.isVirtual', dateAnalysis.isVirtual)}</td></tr>
+            </table>
             ${createCollapsibleJSON('View/Edit Raw Date Analysis', dateAnalysis)}
         </details>
     `;
@@ -308,7 +311,6 @@ export function regeneratePrompts() {
         },
         dateAnalysis: {
             ...(modalState.conversationAnalysis?.dateAnalysis || {}),
-            isVirtual: getChecked('analysis-is-virtual-toggle'),
         }
     };
 
@@ -460,6 +462,7 @@ function handleJsonBlur(e) {
 function handleJsonFocus(e) {
     e.target.style.border = '';
 }
+
 
 
 function attachEventListeners() {
