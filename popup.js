@@ -771,6 +771,8 @@ async function handleGenerateClick() {
             myProfile: dataForBackground.myProfile,
             conversationHistory: state.sessionMatchProfile.conversationHistory,
             conversationAnalysis: state.sessionMatchProfile.analysis,
+            sexualAnalysis: state.sessionMatchProfile.analysis?.sexualAnalysis,
+            dateAnalysis: state.sessionMatchProfile.analysis?.dateAnalysis,
             geoContextData: state.sessionMatchProfile.memory.geoContextData,
             forceIncludeGeoContext: dataForBackground.forceIncludeGeoContext,
             taskInstructions: dataForBackground.taskInstructions,
@@ -1017,7 +1019,7 @@ function displayConversationState() {
         };
         updateInfoDisplay(SELECTORS.conversationStatusDisplay, stateDisplayMap[conversationState] || 'Status: Unknown');
         updateInfoDisplay(SELECTORS.dateArcPhaseDisplay, memory?.dateArcPhase ? `Date Arc: ${memory.dateArcPhase}` : null);
-        updateInfoDisplay(SELECTORS.sexualTensionDisplay, (sexualAnalysis?.sexualTensionScore !== null && sexualAnalysis?.sexualTensionScore !== undefined) ? `Tension: ${Math.round(sexualAnalysis.sexualTensionScore * 100)}%` : null);
+        updateInfoDisplay(SELECTORS.sexualTensionDisplay, (sexualAnalysis?.sexualTensionScore !== null && sexualAnalysis?.sexualTensionScore !== undefined) ? `Tension: ${Math.round(sexualAnalysis.sexualTensionScore * 100)}% (${sexualAnalysis.sexualCommunicationStyle || 'N/A'})` : null);
         updateInfoDisplay(SELECTORS.suggestedActionDisplay, responseSuggestions?.suggestedNextAction ? `Suggestion: ${responseSuggestions.suggestedNextAction.replace(/_/g, ' ')}` : null);
     }
 
