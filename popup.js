@@ -990,6 +990,7 @@ function showErrorInResponseArea(message) {
 
 function displayConversationState() {
     const analysis = state.sessionMatchProfile?.analysis;
+    const dateArcPhase = analysis?.memory?.dateArcPhase; // Declare higher up
 
     // Helper function to update and toggle visibility of info displays
     const updateInfoDisplay = (elementId, content) => {
