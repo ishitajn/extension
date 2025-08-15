@@ -6,7 +6,7 @@ import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './uiHelpers.js';
 let modalState = {};
 let callbacks = {};
 let currentView = 'analysis'; // Start at the new first view
-const VIEWS = ['analysis', 'sexual', 'date', 'memory', 'context', 'suggestions', 'final'];
+const VIEWS = ['analysis', 'sexual', 'date', 'memory', 'context', 'final'];
 
 const CONVERSATION_STATES = ['OPENER', 'EARLY_CONVO', 'ACTIVE_CONVO', 'REENGAGING_DAY', 'REENGAGING_WEEK', 'REENGAGING_MONTH'];
 const INTENT_OPTIONS = ['questioning', 'planning', 'reacting_to_humor', 'storytelling', 'flirting_or_sexual'];
@@ -108,7 +108,6 @@ function renderView() {
             case 'date': html = renderDateAnalysisView(); break;
             case 'memory': html = renderMemoryView(); break;
             case 'context': html = renderContextView(); break;
-            case 'suggestions': html = renderSuggestionsView(); break;
             case 'final': html = renderFinalPayloadView(); break;
             default: html = '<p>Unknown view state.</p>';
         }
@@ -129,17 +128,13 @@ function renderAnalysisView() {
     return `
         <h3>View 1: Conversation Analysis</h3>
         <table class="payload-table">
-            <tr><td>Conversation State</td><td>${createSelect('analysis-state', 'conversationAnalysis.conversationState', CONVERSATION_STATES, conversationAnalysis.conversationState)}</td></tr>
-            <tr><td>Suppress Greeting?</td><td>${createCheckbox('analysis-suppressGreeting', 'conversationAnalysis.suppressGreeting', conversationAnalysis.suppressGreeting)}</td></tr>
             <tr><td colspan="2" class="table-section-header"><strong>Last Message Subtext</strong></td></tr>
-            <tr><td>Is Direct Question?</td><td>${createCheckbox('subtext-isDirectQuestion', 'conversationAnalysis.lastMessageAnalysis.isDirectQuestion', lastMessageAnalysis.isDirectQuestion)}</td></tr>
             <tr><td>Is Low Effort?</td><td>${createCheckbox('subtext-isLowEffort', 'conversationAnalysis.lastMessageAnalysis.isLowEffort', lastMessageAnalysis.isLowEffort)}</td></tr>
             <tr><td>Is Sarcastic?</td><td>${createCheckbox('subtext-isSarcastic', 'conversationAnalysis.lastMessageAnalysis.isSarcastic', lastMessageAnalysis.isSarcastic)}</td></tr>
             <tr><td>Is Ambiguous?</td><td>${createCheckbox('subtext-isAmbiguous', 'conversationAnalysis.lastMessageAnalysis.isAmbiguous', lastMessageAnalysis.isAmbiguous)}</td></tr>
             <tr><td>Is Vulnerable?</td><td>${createCheckbox('subtext-isVulnerable', 'conversationAnalysis.lastMessageAnalysis.isVulnerable', lastMessageAnalysis.isVulnerable)}</td></tr>
             <tr><td>Valence</td><td>${createSlider('subtext-valence', 'conversationAnalysis.lastMessageAnalysis.valence', lastMessageAnalysis.valence ?? 0, -1, 1, 0.1, valenceLabels)}</td></tr>
             <tr><td>Arousal</td><td>${createSlider('subtext-arousal', 'conversationAnalysis.lastMessageAnalysis.arousal', lastMessageAnalysis.arousal ?? 0, -1, 1, 0.1, arousalLabels)}</td></tr>
-            <tr><td>Intents</td><td>${createMultiSelect('subtext-intents', 'conversationAnalysis.lastMessageAnalysis.intents', INTENT_OPTIONS, lastMessageAnalysis.intents)}</td></tr>
         </table>
         ${createCollapsibleJSON('View/Edit Raw Analysis Object', modalState.conversationAnalysis)}
     `;
@@ -186,7 +181,6 @@ function renderDateAnalysisView() {
             <tr><td>Time (ISO)</td><td>${createInput('date-time', 'dateAnalysis.dateLogistics.time', dateLogistics.time)}</td></tr>
             <tr><td>Date Type</td><td>${createSelect('date-type', 'dateAnalysis.dateType', dateTypeOptions, dateAnalysis.dateType)}</td></tr>
             <tr><td>Date Vibe</td><td>${createSelect('date-vibe', 'dateAnalysis.dateVibe', vibeOptions, dateAnalysis.dateVibe)}</td></tr>
-            <tr><td>Is Virtual?</td><td>${createCheckbox('date-isVirtual', 'dateAnalysis.isVirtual', dateAnalysis.isVirtual)}</td></tr>
             <tr><td>Who Initiated?</td><td>${createSelect('date-initiator', 'dateAnalysis.whoInitiated', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
         </table>
         ${createCollapsibleJSON('View/Edit Raw Date Analysis', modalState.dateAnalysis)}
@@ -236,27 +230,6 @@ function renderContextView() {
         <h4>Conversation History</h4>
         <div class="messages-container">${historyHtml}</div>
         <button id="add-message-btn" class="btn btn-secondary add-message-btn">Add Message</button>
-    `;
-}
-
-function renderSuggestionsView() {
-    const responseSuggestions = modalState.responseSuggestions || {};
-    const styleOptions = LINGUISTIC_STYLES;
-    const emojiOptions = ['auto', 'friendly', 'playful', 'bold', 'no_emoji'];
-    const nextActionOptions = ['ask_for_date', 'build_rapport', 'clarify_intent', 'escalate_sexually'];
-
-    return `
-        <h3>View 7: Response Suggestions</h3>
-        <table class="payload-table">
-            <tr><td>Suggested Length</td><td>${createInput('suggestions-length', 'responseSuggestions.length', responseSuggestions.length, 'number')}</td></tr>
-            <tr><td>Suggested Tone</td><td>${createInput('suggestions-tone', 'responseSuggestions.tone', responseSuggestions.tone, 'number')}</td></tr>
-            <tr><td>Suggested Style</td><td>${createSelect('suggestions-style', 'responseSuggestions.linguisticStyle', styleOptions, responseSuggestions.linguisticStyle)}</td></tr>
-            <tr><td>Suggested Emoji</td><td>${createSelect('suggestions-emoji', 'responseSuggestions.emojiStrategy', emojiOptions, responseSuggestions.emojiStrategy)}</td></tr>
-            <tr><td>End with Question?</td><td>${createCheckbox('suggestions-endWithQuestion', 'responseSuggestions.endWithQuestion', responseSuggestions.endWithQuestion)}</td></tr>
-            <tr><td>Suggested Next Action</td><td>${createSelect('suggestions-nextAction', 'responseSuggestions.suggestedNextAction', nextActionOptions, responseSuggestions.suggestedNextAction)}</td></tr>
-            <tr><td>Key Talking Points (one per line)</td><td>${createTextarea('suggestions-talkingPoints', 'responseSuggestions.keyTalkingPoints', (responseSuggestions.keyTalkingPoints || []).join('\n'))}</td></tr>
-        </table>
-        ${createCollapsibleJSON('View/Edit Raw Suggestions', modalState.responseSuggestions)}
     `;
 }
 

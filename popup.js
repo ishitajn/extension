@@ -277,6 +277,42 @@ async function handleNlpAnalysisResponse(message) {
         updateGeoContextDisplay(null); // Hide the card if no data
     }
 
+    // NEW: Apply AI suggestions to the UI controls
+    if (state.sessionMatchProfile?.analysis?.responseSuggestions) {
+        const suggestions = state.sessionMatchProfile.analysis.responseSuggestions;
+        const suggestionMap = {
+            tone: SELECTORS.flirtySlider,
+            length: SELECTORS.lengthSlider,
+            linguisticStyle: SELECTORS.linguisticStyleSelect,
+            emojiStrategy: SELECTORS.emojiStrategySelect,
+            endWithQuestion: SELECTORS.questionToggleCheckbox
+        };
+
+        for (const [key, selectorId] of Object.entries(suggestionMap)) {
+            if (suggestions[key] !== undefined && suggestions[key] !== null) {
+                const el = document.getElementById(selectorId);
+                if (el) {
+                    const elType = el.type;
+                    if (elType === 'checkbox') {
+                        el.checked = suggestions[key];
+                    } else {
+                        // Ensure value is within slider bounds
+                        if (elType === 'range') {
+                            const min = parseFloat(el.min);
+                            const max = parseFloat(el.max);
+                            el.value = Math.max(min, Math.min(max, suggestions[key]));
+                        } else {
+                            el.value = suggestions[key];
+                        }
+                    }
+                    // Dispatch event to trigger UI updates (e.g., slider labels, debug modal)
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        }
+    }
+
+
     displayConversationState();
     showView(SELECTORS.mainView);
 }
@@ -345,11 +381,12 @@ function setupEventListeners() {
         const config = UI_CONFIG[key];
         const el = document.getElementById(config.id);
         if (el) {
-            const eventType = (config.type === 'slider' || config.type === 'text') ? 'input' : 'change';
+            const eventType = (config.type === 'slider' || config.type === 'text' || el.tagName === 'TEXTAREA') ? 'input' : 'change';
             el.addEventListener(eventType, handleSettingChange);
 
             if (config.type === 'slider') {
-                el.addEventListener('input', () => updateSliderValueLabel(config.id, `${config.id}-value`));
+                const labelId = `${config.id.replace('-slider', '')}-value-label`;
+                el.addEventListener('input', () => updateSliderValueLabel(config.id, labelId));
             }
         }
     }
@@ -981,6 +1018,26 @@ function displayConversationState() {
     updateDisplay(SELECTORS.sexualTensionDisplay, (sexualTension !== null && sexualTension !== undefined) ? `Tension: ${Math.round(sexualTension * 100)}%` : null);
     updateDisplay(SELECTORS.suggestedActionDisplay, suggestedAction ? `Suggestion: ${suggestedAction.replace(/_/g, ' ')}` : null);
 
+    // NEW: Populate the Analysis Details card
+    const analysisCard = document.getElementById('analysis-details-card');
+    if (analysisCard) {
+        if (analysis) {
+            analysisCard.hidden = false;
+            const safeGet = (obj, path, defaultValue = 'N/A') => {
+                const value = path.split('.').reduce((p,c) => (p && p[c] != null) ? p[c] : null, obj);
+                return value !== null ? value : defaultValue;
+            };
+
+            document.getElementById('analysis-convo-state').textContent = conversationState;
+            document.getElementById('analysis-next-action').textContent = safeGet(analysis, 'responseSuggestions.suggestedNextAction', 'N/A').replace(/_/g, ' ');
+            document.getElementById('analysis-intents').textContent = safeGet(analysis, 'lastMessageAnalysis.intents', []).join(', ') || 'N/A';
+            document.getElementById('analysis-suppress-greeting').textContent = safeGet(analysis, 'suppressGreeting') ? 'Yes' : 'No';
+            document.getElementById('analysis-is-question').textContent = safeGet(analysis, 'lastMessageAnalysis.isDirectQuestion') ? 'Yes' : 'No';
+            document.getElementById('analysis-is-virtual').textContent = safeGet(analysis, 'dateAnalysis.isVirtual') ? 'Yes' : 'No';
+        } else {
+            analysisCard.hidden = true;
+        }
+    }
 
     const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
     if (dateIdeaBtn) {
