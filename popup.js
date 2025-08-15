@@ -406,14 +406,25 @@ function setupEventListeners() {
     // Populate selects
     populateSelect(UI_CONFIG.linguisticStyleSelect.id, Object.values(UI_CONFIG.linguisticStyleSelect.options).map(s => ({ value: s, text: s.charAt(0).toUpperCase() + s.slice(1) })));
     populateSelect(UI_CONFIG.emojiStrategySelect.id, Object.entries(UI_CONFIG.emojiStrategySelect.options).map(([value, text]) => ({ value, text })));
-    populateSelect(SELECTORS.userLocationSelect, Object.entries(USER_LOCATIONS).map(([key, loc]) => ({ value: key, text: loc.name })));
+
+    // Populate new analysis dropdowns
+    const convoStates = ['OPENER', 'EARLY_CONVO', 'ACTIVE_CONVO', 'REENGAGING_DAY', 'REENGAGING_WEEK', 'REENGAGING_MONTH'];
+    populateSelect('analysis-convo-state-select', convoStates.map(s => ({ value: s, text: s.replace(/_/g, ' ') })));
+
+    const nextActions = ['ASK_FOR_DATE', 'BUILD_RAPPORT', 'CLARIFY_INTENT', 'ESCALATE_SEXUALLY'];
+    populateSelect('analysis-next-action-select', nextActions.map(s => ({ value: s, text: s.replace(/_/g, ' ') })));
+
 
     // Add listeners for dynamic prompt updates in debug modal
     const controlsToWatch = [
         'custom-instruction', 'flirty-slider', 'length-slider',
         'linguistic-style-select', 'emoji-strategy-select', 'temperature-slider',
         'top-p-slider', 'question-toggle-checkbox', 'strict-goal-toggle',
-        'new-topic-toggle', 'geo-context-toggle'
+        'new-topic-toggle', 'geo-context-toggle',
+        // New editable analysis controls
+        'analysis-convo-state-select', 'analysis-next-action-select',
+        'analysis-intents-input', 'analysis-suppress-greeting-toggle',
+        'analysis-is-question-toggle', 'analysis-is-virtual-toggle'
     ];
 
     controlsToWatch.forEach(id => {
@@ -980,8 +991,8 @@ function showErrorInResponseArea(message) {
 function displayConversationState() {
     const analysis = state.sessionMatchProfile?.analysis;
 
-    // Helper function to update and toggle visibility
-    const updateDisplay = (elementId, content) => {
+    // Helper function to update and toggle visibility of info displays
+    const updateInfoDisplay = (elementId, content) => {
         const el = document.getElementById(elementId);
         if (el) {
             const hasContent = content !== null && content !== undefined && content !== '';
@@ -990,50 +1001,37 @@ function displayConversationState() {
         }
     };
 
+    // --- Top Status Card ---
     if (!analysis) {
-        updateDisplay(SELECTORS.conversationStatusDisplay, 'Status: Analyzing...');
-        updateDisplay(SELECTORS.dateArcPhaseDisplay, null);
-        updateDisplay(SELECTORS.sexualTensionDisplay, null);
-        updateDisplay(SELECTORS.suggestedActionDisplay, null);
-        const dateIdeaBtn = document.getElementById(SELECTORS.dateIdeaBtn);
-        if (dateIdeaBtn) dateIdeaBtn.classList.add('hidden');
-        return;
+        updateInfoDisplay(SELECTORS.conversationStatusDisplay, 'Status: Analyzing...');
+        updateInfoDisplay(SELECTORS.dateArcPhaseDisplay, null);
+        updateInfoDisplay(SELECTORS.sexualTensionDisplay, null);
+        updateInfoDisplay(SELECTORS.suggestedActionDisplay, null);
+    } else {
+        const { conversationState, memory, sexualAnalysis, responseSuggestions } = analysis;
+        const stateDisplayMap = {
+            'OPENER': 'Status: New Conversation (Opener)', 'EARLY_CONVO': 'Status: Early Conversation',
+            'ACTIVE_CONVO': 'Status: Active Conversation', 'REENGAGING_DAY': 'Status: Re-engaging (1-7 day pause)',
+            'REENGAGING_WEEK': 'Status: Re-engaging (1-4 week pause)', 'REENGAGING_MONTH': 'Status: Re-engaging (1+ month pause)'
+        };
+        updateInfoDisplay(SELECTORS.conversationStatusDisplay, stateDisplayMap[conversationState] || 'Status: Unknown');
+        updateInfoDisplay(SELECTORS.dateArcPhaseDisplay, memory?.dateArcPhase ? `Date Arc: ${memory.dateArcPhase}` : null);
+        updateInfoDisplay(SELECTORS.sexualTensionDisplay, (sexualAnalysis?.sexualTensionScore !== null && sexualAnalysis?.sexualTensionScore !== undefined) ? `Tension: ${Math.round(sexualAnalysis.sexualTensionScore * 100)}%` : null);
+        updateInfoDisplay(SELECTORS.suggestedActionDisplay, responseSuggestions?.suggestedNextAction ? `Suggestion: ${responseSuggestions.suggestedNextAction.replace(/_/g, ' ')}` : null);
     }
 
-    const { conversationState, memory, sexualAnalysis, responseSuggestions } = analysis;
-    const dateArcPhase = memory?.dateArcPhase;
-    const sexualTension = sexualAnalysis?.sexualTensionScore;
-    const suggestedAction = responseSuggestions?.suggestedNextAction;
-
-    const stateDisplayMap = {
-        'OPENER': 'Status: New Conversation (Opener)',
-        'EARLY_CONVO': 'Status: Early Conversation',
-        'ACTIVE_CONVO': 'Status: Active Conversation',
-        'REENGAGING_DAY': 'Status: Re-engaging (1-7 day pause)',
-        'REENGAGING_WEEK': 'Status: Re-engaging (1-4 week pause)',
-        'REENGAGING_MONTH': 'Status: Re-engaging (1+ month pause)'
-    };
-    updateDisplay(SELECTORS.conversationStatusDisplay, stateDisplayMap[conversationState] || 'Status: Unknown');
-    updateDisplay(SELECTORS.dateArcPhaseDisplay, dateArcPhase ? `Date Arc: ${dateArcPhase}` : null);
-    updateDisplay(SELECTORS.sexualTensionDisplay, (sexualTension !== null && sexualTension !== undefined) ? `Tension: ${Math.round(sexualTension * 100)}%` : null);
-    updateDisplay(SELECTORS.suggestedActionDisplay, suggestedAction ? `Suggestion: ${suggestedAction.replace(/_/g, ' ')}` : null);
-
-    // NEW: Populate the Analysis Details card
+    // --- Analysis Details & Overrides Card ---
     const analysisCard = document.getElementById('analysis-details-card');
     if (analysisCard) {
         if (analysis) {
             analysisCard.hidden = false;
-            const safeGet = (obj, path, defaultValue = 'N/A') => {
-                const value = path.split('.').reduce((p,c) => (p && p[c] != null) ? p[c] : null, obj);
-                return value !== null ? value : defaultValue;
-            };
-
-            document.getElementById('analysis-convo-state').textContent = conversationState;
-            document.getElementById('analysis-next-action').textContent = safeGet(analysis, 'responseSuggestions.suggestedNextAction', 'N/A').replace(/_/g, ' ');
-            document.getElementById('analysis-intents').textContent = safeGet(analysis, 'lastMessageAnalysis.intents', []).join(', ') || 'N/A';
-            document.getElementById('analysis-suppress-greeting').textContent = safeGet(analysis, 'suppressGreeting') ? 'Yes' : 'No';
-            document.getElementById('analysis-is-question').textContent = safeGet(analysis, 'lastMessageAnalysis.isDirectQuestion') ? 'Yes' : 'No';
-            document.getElementById('analysis-is-virtual').textContent = safeGet(analysis, 'dateAnalysis.isVirtual') ? 'Yes' : 'No';
+            // Populate editable controls
+            document.getElementById('analysis-convo-state-select').value = analysis.conversationState || 'ACTIVE_CONVO';
+            document.getElementById('analysis-next-action-select').value = analysis.responseSuggestions?.suggestedNextAction || 'BUILD_RAPPORT';
+            document.getElementById('analysis-intents-input').value = analysis.lastMessageAnalysis?.intents?.join(', ') || '';
+            document.getElementById('analysis-suppress-greeting-toggle').checked = analysis.suppressGreeting || false;
+            document.getElementById('analysis-is-question-toggle').checked = analysis.lastMessageAnalysis?.isDirectQuestion || false;
+            document.getElementById('analysis-is-virtual-toggle').checked = analysis.dateAnalysis?.isVirtual || false;
         } else {
             analysisCard.hidden = true;
         }

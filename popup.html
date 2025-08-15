@@ -147,17 +147,37 @@
                 </div>
             </details>
 
-            <details class="card" id="analysis-details-card" hidden>
-                <summary class="card-header">Analysis Details</summary>
+            <details class="card" id="analysis-details-card" open hidden>
+                <summary class="card-header">Analysis Details & Overrides</summary>
                 <div class="card-content">
-                    <table class="analysis-table">
-                        <tr><td>Conversation State:</td><td id="analysis-convo-state">N/A</td></tr>
-                        <tr><td>Suggested Next Action:</td><td id="analysis-next-action">N/A</td></tr>
-                        <tr><td>Intents:</td><td id="analysis-intents">N/A</td></tr>
-                        <tr><td>Suppress Greeting:</td><td id="analysis-suppress-greeting">N/A</td></tr>
-                        <tr><td>Is Direct Question:</td><td id="analysis-is-question">N/A</td></tr>
-                        <tr><td>Is Virtual Date:</td><td id="analysis-is-virtual">N/A</td></tr>
-                    </table>
+                    <div class="control-group">
+                        <label for="analysis-convo-state-select">Conversation State</label>
+                        <select id="analysis-convo-state-select"></select>
+                    </div>
+                    <div class="control-group">
+                        <label for="analysis-next-action-select">Suggested Next Action</label>
+                        <select id="analysis-next-action-select"></select>
+                    </div>
+                     <div class="control-group">
+                        <label for="analysis-intents-input">Intents (comma-separated)</label>
+                        <input type="text" id="analysis-intents-input" placeholder="e.g. questioning, planning">
+                    </div>
+                    <div class="quick-toggles">
+                         <label class="toggle-switch">
+                            <input type="checkbox" id="analysis-suppress-greeting-toggle">
+                            <span>Suppress Greeting</span>
+                        </label>
+                        <span class="toggle-separator">|</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="analysis-is-question-toggle">
+                            <span>Is Direct Question</span>
+                        </label>
+                         <span class="toggle-separator">|</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="analysis-is-virtual-toggle">
+                            <span>Is Virtual Date</span>
+                        </label>
+                    </div>
                 </div>
             </details>
 

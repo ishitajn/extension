@@ -6,7 +6,7 @@ import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './uiHelpers.js';
 let modalState = {};
 let callbacks = {};
 let currentView = 'analysis'; // Start at the new first view
-const VIEWS = ['analysis', 'sexual', 'date', 'memory', 'context', 'final'];
+const VIEWS = ['analysis', 'advanced-analysis', 'memory', 'context', 'final'];
 
 const CONVERSATION_STATES = ['OPENER', 'EARLY_CONVO', 'ACTIVE_CONVO', 'REENGAGING_DAY', 'REENGAGING_WEEK', 'REENGAGING_MONTH'];
 const INTENT_OPTIONS = ['questioning', 'planning', 'reacting_to_humor', 'storytelling', 'flirting_or_sexual'];
@@ -104,8 +104,7 @@ function renderView() {
     try {
         switch (currentView) {
             case 'analysis': html = renderAnalysisView(); break;
-            case 'sexual': html = renderSexualAnalysisView(); break;
-            case 'date': html = renderDateAnalysisView(); break;
+            case 'advanced-analysis': html = renderAdvancedAnalysisView(); break;
             case 'memory': html = renderMemoryView(); break;
             case 'context': html = renderContextView(); break;
             case 'final': html = renderFinalPayloadView(); break;
@@ -126,7 +125,7 @@ function renderAnalysisView() {
     const arousalLabels = { '-1': 'Bored/Calm', '-0.5': 'Low Energy', '-0.1': 'Neutral', '0.5': 'Excited', '1': 'Agitated' };
 
     return `
-        <h3>View 1: Conversation Analysis</h3>
+        <h3>View 1: Basic Message Analysis</h3>
         <table class="payload-table">
             <tr><td colspan="2" class="table-section-header"><strong>Last Message Subtext</strong></td></tr>
             <tr><td>Is Low Effort?</td><td>${createCheckbox('subtext-isLowEffort', 'conversationAnalysis.lastMessageAnalysis.isLowEffort', lastMessageAnalysis.isLowEffort)}</td></tr>
@@ -140,7 +139,7 @@ function renderAnalysisView() {
     `;
 }
 
-function renderSexualAnalysisView() {
+function renderAdvancedAnalysisView() {
     const sexualAnalysis = modalState.sexualAnalysis || {};
     const tensionLabels = { 0: 'None', 0.5: 'Subtle', 0.8: 'High', 1: 'Intense' };
     const confidenceLabels = { 0: 'None', 0.5: 'Maybe', 0.8: 'Likely', 1: 'Certain' };
@@ -149,9 +148,17 @@ function renderSexualAnalysisView() {
     const suggestionOptions = ['match_and_escalate', 'redirect_to_romance', 'clarify_and_respect_boundary'];
     const archetypeOptions = ['The Romantic', 'The Adventurer', 'The Intellectual Seducer'];
 
+    const dateAnalysis = modalState.dateAnalysis || {};
+    const dateLogistics = dateAnalysis.dateLogistics || {};
+    const commitmentOptions = ['tentative', 'confirmed', 'imminent'];
+    const dateTypeOptions = ['coffee_date', 'dinner_and_drinks', 'casual_hangout'];
+    const vibeOptions = ['romantic', 'adventurous', 'intellectual'];
+    const initiatorOptions = ['user', 'match', 'mutual'];
+
     return `
-        <h3>View 2: Sexual Analysis</h3>
+        <h3>View 2: Advanced Analysis</h3>
         <table class="payload-table">
+             <tr><td colspan="2" class="table-section-header"><strong>Sexual Analysis</strong></td></tr>
             <tr><td>Sexual Tension</td><td>${createSlider('sexual-tension', 'sexualAnalysis.sexualTensionScore', sexualAnalysis.sexualTensionScore ?? 0, 0, 1, 0.1, tensionLabels)}</td></tr>
             <tr><td>Intent Confidence</td><td>${createSlider('sexual-confidence', 'sexualAnalysis.sexualIntentConfidence', sexualAnalysis.sexualIntentConfidence ?? 0, 0, 1, 0.1, confidenceLabels)}</td></tr>
             <tr><td>Escalation Pace</td><td>${createSelect('sexual-pace', 'sexualAnalysis.escalationPace', paceOptions, sexualAnalysis.escalationPace)}</td></tr>
@@ -161,36 +168,27 @@ function renderSexualAnalysisView() {
             <tr><td>Sexual Archetype</td><td>${createSelect('sexual-archetype', 'sexualAnalysis.sexualArchetype', archetypeOptions, sexualAnalysis.sexualArchetype)}</td></tr>
         </table>
         ${createCollapsibleJSON('View/Edit Raw Sexual Analysis', modalState.sexualAnalysis)}
-    `;
-}
 
-function renderDateAnalysisView() {
-    const dateAnalysis = modalState.dateAnalysis || {};
-    const dateLogistics = dateAnalysis.dateLogistics || {};
-    const commitmentOptions = ['tentative', 'confirmed', 'imminent'];
-    const dateTypeOptions = ['coffee_date', 'dinner_and_drinks', 'casual_hangout'];
-    const vibeOptions = ['romantic', 'adventurous', 'intellectual'];
-    const initiatorOptions = ['user', 'match', 'mutual'];
-
-    return `
-        <h3>View 3: Date Analysis</h3>
-        <table class="payload-table">
-            <tr><td>Date Planned?</td><td>${createCheckbox('date-isPlanned', 'dateAnalysis.isDatePlanned', dateAnalysis.isDatePlanned)}</td></tr>
-            <tr><td>Commitment Level</td><td>${createSelect('date-commitment', 'dateAnalysis.dateCommitmentLevel', commitmentOptions, dateAnalysis.dateCommitmentLevel)}</td></tr>
-            <tr><td>Venue</td><td>${createInput('date-venue', 'dateAnalysis.dateLogistics.venue', dateLogistics.venue)}</td></tr>
-            <tr><td>Time (ISO)</td><td>${createInput('date-time', 'dateAnalysis.dateLogistics.time', dateLogistics.time)}</td></tr>
-            <tr><td>Date Type</td><td>${createSelect('date-type', 'dateAnalysis.dateType', dateTypeOptions, dateAnalysis.dateType)}</td></tr>
-            <tr><td>Date Vibe</td><td>${createSelect('date-vibe', 'dateAnalysis.dateVibe', vibeOptions, dateAnalysis.dateVibe)}</td></tr>
-            <tr><td>Who Initiated?</td><td>${createSelect('date-initiator', 'dateAnalysis.whoInitiated', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
-        </table>
-        ${createCollapsibleJSON('View/Edit Raw Date Analysis', modalState.dateAnalysis)}
+        <details class="modal-payload-details" style="margin-top: 1rem;">
+            <summary>Date Analysis</summary>
+            <table class="payload-table">
+                <tr><td>Date Planned?</td><td>${createCheckbox('date-isPlanned', 'dateAnalysis.isDatePlanned', dateAnalysis.isDatePlanned)}</td></tr>
+                <tr><td>Commitment Level</td><td>${createSelect('date-commitment', 'dateAnalysis.dateCommitmentLevel', commitmentOptions, dateAnalysis.dateCommitmentLevel)}</td></tr>
+                <tr><td>Venue</td><td>${createInput('date-venue', 'dateAnalysis.dateLogistics.venue', dateLogistics.venue)}</td></tr>
+                <tr><td>Time (ISO)</td><td>${createInput('date-time', 'dateAnalysis.dateLogistics.time', dateLogistics.time)}</td></tr>
+                <tr><td>Date Type</td><td>${createSelect('date-type', 'dateAnalysis.dateType', dateTypeOptions, dateAnalysis.dateType)}</td></tr>
+                <tr><td>Date Vibe</td><td>${createSelect('date-vibe', 'dateAnalysis.dateVibe', vibeOptions, dateAnalysis.dateVibe)}</td></tr>
+                <tr><td>Who Initiated?</td><td>${createSelect('date-initiator', 'dateAnalysis.whoInitiated', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
+            </table>
+            ${createCollapsibleJSON('View/Edit Raw Date Analysis', modalState.dateAnalysis)}
+        </details>
     `;
 }
 
 function renderMemoryView() {
     const memory = modalState.conversationAnalysis?.memory || {};
     return `
-        <h3>View 5: Match Memory</h3>
+        <h3>View 3: Match Memory</h3>
         <table class="payload-table">
             <tr><td>Date Arc Phase</td><td>${createSelect('memory-dateArcPhase', 'conversationAnalysis.memory.dateArcPhase', DATE_ARC_PHASES, memory.dateArcPhase)}</td></tr>
             <tr><td>Inside Jokes (one per line)</td><td>${createTextarea('memory-insideJokes', 'conversationAnalysis.memory.insideJokes', (memory.insideJokes || []).join('\n'))}</td></tr>
@@ -219,7 +217,7 @@ function renderContextView() {
     `).join('');
 
     return `
-        <h3>View 6: Profiles & History</h3>
+        <h3>View 4: Profiles & History</h3>
         <table class="payload-table">
             <tr><td>My Name</td><td>${createInput('context-myName', 'myName', modalState.myName)}</td></tr>
             <tr><td>Their Name</td><td>${createInput('context-theirName', 'theirName', modalState.theirName)}</td></tr>
@@ -236,7 +234,7 @@ function renderContextView() {
 function renderFinalPayloadView() {
     // This view is now mostly a container. The content is filled by regeneratePrompts.
     return `
-        <h3>View 8: Final Payload Review</h3>
+        <h3>View 5: Final Payload Review</h3>
         <p>This is the exact data that will be sent to the AI. You can make final edits to the messages below.</p>
         <div id="final-payload-prompts-container">
             <p>Generating prompts...</p>
@@ -280,10 +278,32 @@ export function regeneratePrompts() {
     };
 
     // We merge the live UI settings with the (potentially modified) data in the modal state
+    const analysisOverrides = {
+        conversationState: getValue('analysis-convo-state-select'),
+        suppressGreeting: getChecked('analysis-suppress-greeting-toggle'),
+        lastMessageAnalysis: {
+            ...(modalState.conversationAnalysis?.lastMessageAnalysis || {}),
+            intents: getValue('analysis-intents-input').split(',').map(s => s.trim()).filter(Boolean),
+            isDirectQuestion: getChecked('analysis-is-question-toggle'),
+        },
+        responseSuggestions: {
+            ...(modalState.conversationAnalysis?.responseSuggestions || {}),
+            suggestedNextAction: getValue('analysis-next-action-select'),
+        },
+        dateAnalysis: {
+            ...(modalState.conversationAnalysis?.dateAnalysis || {}),
+            isVirtual: getChecked('analysis-is-virtual-toggle'),
+        }
+    };
+
     const dataForPrompts = {
         ...modalState,
         taskInstructions: { ...modalState.taskInstructions, ...liveTaskInstructions },
         forceIncludeGeoContext: getChecked('geo-context-toggle'),
+        conversationAnalysis: {
+            ...modalState.conversationAnalysis,
+            ...analysisOverrides
+        }
     };
 
     let systemMessage, userMessage;
