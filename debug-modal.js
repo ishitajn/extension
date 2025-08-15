@@ -6,7 +6,7 @@ import { LINGUISTIC_STYLES, DATE_ARC_PHASES } from './uiHelpers.js';
 let modalState = {};
 let callbacks = {};
 let currentView = 'analysis'; // Start at the new first view
-const VIEWS = ['analysis', 'advanced-analysis', 'memory', 'context', 'final'];
+const VIEWS = ['analysis', 'advanced-analysis', 'memory', 'context', 'final', 'legacy'];
 
 const CONVERSATION_STATES = ['OPENER', 'EARLY_CONVO', 'ACTIVE_CONVO', 'REENGAGING_DAY', 'REENGAGING_WEEK', 'REENGAGING_MONTH'];
 const INTENT_OPTIONS = ['questioning', 'planning', 'reacting_to_humor', 'storytelling', 'flirting_or_sexual'];
@@ -66,6 +66,58 @@ function createSlider(id, dataPath, value, min, max, step, labelMap) {
     `;
 }
 
+function renderLegacyView() {
+    const lastMessageAnalysis = modalState.conversationAnalysis?.lastMessageAnalysis || {};
+    const sexualAnalysis = modalState.conversationAnalysis?.sexualAnalysis || {};
+    const dateAnalysis = modalState.conversationAnalysis?.dateAnalysis || {};
+    const memory = modalState.conversationAnalysis?.memory || {};
+
+    const valenceLabels = { '-1': 'Very Negative', '-0.5': 'Negative', '-0.1': 'Neutral', '0.5': 'Positive', '1': 'Very Positive' };
+    const arousalLabels = { '-1': 'Bored/Calm', '-0.5': 'Low Energy', '-0.1': 'Neutral', '0.5': 'Excited', '1': 'Agitated' };
+    const tensionLabels = { 0: 'None', 0.5: 'Subtle', 0.8: 'High', 1: 'Intense' };
+    const confidenceLabels = { 0: 'None', 0.5: 'Maybe', 0.8: 'Likely', 1: 'Certain' };
+    const paceOptions = ['slow', 'moderate', 'fast'];
+    const suggestionOptions = ['match_and_escalate', 'redirect_to_romance', 'clarify_and_respect_boundary'];
+    const archetypeOptions = ['The Romantic', 'The Adventurer', 'The Intellectual Seducer'];
+    const commitmentOptions = ['tentative', 'confirmed', 'imminent'];
+    const dateTypeOptions = ['coffee_date', 'dinner_and_drinks', 'casual_hangout'];
+    const vibeOptions = ['romantic', 'adventurous', 'intellectual'];
+    const initiatorOptions = ['user', 'match', 'mutual'];
+
+    return `
+        <h3>View 6: Legacy Fields</h3>
+        <p>These fields are no longer provided by the new backend and are here for reference only.</p>
+        <table class="payload-table">
+            <tr><td colspan="2" class="table-section-header"><strong>Legacy Last Message Analysis</strong></td></tr>
+            <tr><td>Is Low Effort?</td><td>${createCheckbox('legacy-isLowEffort', '', lastMessageAnalysis.isLowEffort)}</td></tr>
+            <tr><td>Is Sarcastic?</td><td>${createCheckbox('legacy-isSarcastic', '', lastMessageAnalysis.isSarcastic)}</td></tr>
+            <tr><td>Is Ambiguous?</td><td>${createCheckbox('legacy-isAmbiguous', '', lastMessageAnalysis.isAmbiguous)}</td></tr>
+            <tr><td>Is Vulnerable?</td><td>${createCheckbox('legacy-isVulnerable', '', lastMessageAnalysis.isVulnerable)}</td></tr>
+            <tr><td>Valence</td><td>${createSlider('legacy-valence', '', lastMessageAnalysis.valence ?? 0, -1, 1, 0.1, valenceLabels)}</td></tr>
+            <tr><td>Arousal</td><td>${createSlider('legacy-arousal', '', lastMessageAnalysis.arousal ?? 0, -1, 1, 0.1, arousalLabels)}</td></tr>
+
+            <tr><td colspan="2" class="table-section-header"><strong>Legacy Sexual Analysis</strong></td></tr>
+            <tr><td>Sexual Tension</td><td>${createSlider('legacy-sexual-tension', '', sexualAnalysis.sexualTensionScore ?? 0, 0, 1, 0.1, tensionLabels)}</td></tr>
+            <tr><td>Intent Confidence</td><td>${createSlider('legacy-sexual-confidence', '', sexualAnalysis.sexualIntentConfidence ?? 0, 0, 1, 0.1, confidenceLabels)}</td></tr>
+            <tr><td>Escalation Pace</td><td>${createSelect('legacy-sexual-pace', '', paceOptions, sexualAnalysis.escalationPace)}</td></tr>
+            <tr><td>Response Suggestion</td><td>${createSelect('legacy-sexual-suggestion', '', suggestionOptions, sexualAnalysis.sexualResponseSuggestion)}</td></tr>
+            <tr><td>Sexual Archetype</td><td>${createSelect('legacy-sexual-archetype', '', archetypeOptions, sexualAnalysis.sexualArchetype)}</td></tr>
+
+            <tr><td colspan="2" class="table-section-header"><strong>Legacy Date Analysis</strong></td></tr>
+            <tr><td>Date Planned?</td><td>${createCheckbox('legacy-date-isPlanned', '', dateAnalysis.isDatePlanned)}</td></tr>
+            <tr><td>Commitment Level</td><td>${createSelect('legacy-date-commitment', '', commitmentOptions, dateAnalysis.dateCommitmentLevel)}</td></tr>
+            <tr><td>Date Type</td><td>${createSelect('legacy-date-type', '', dateTypeOptions, dateAnalysis.dateType)}</td></tr>
+            <tr><td>Date Vibe</td><td>${createSelect('legacy-date-vibe', '', vibeOptions, dateAnalysis.dateVibe)}</td></tr>
+            <tr><td>Who Initiated?</td><td>${createSelect('legacy-date-initiator', '', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
+            <tr><td>Date Logistics</td><td>${createTextarea('legacy-date-logistics', '', JSON.stringify(dateAnalysis.dateLogistics || {}))}</td></tr>
+
+            <tr><td colspan="2" class="table-section-header"><strong>Legacy Memory</strong></td></tr>
+            <tr><td>Topics</td><td>${createTextarea('legacy-memory-topics', '', JSON.stringify(memory.topics || {}))}</td></tr>
+            <tr><td>Avoided Topics</td><td>${createTextarea('legacy-memory-avoidedTopics', '', (memory.avoidedTopics || []).join('\n'))}</td></tr>
+        </table>
+    `;
+}
+
 function createCollapsibleJSON(title, dataObject, isEditable = true) {
     if (dataObject === null || typeof dataObject === 'undefined') {
         return `
@@ -108,6 +160,7 @@ function renderView() {
             case 'memory': html = renderMemoryView(); break;
             case 'context': html = renderContextView(); break;
             case 'final': html = renderFinalPayloadView(); break;
+            case 'legacy': html = renderLegacyView(); break;
             default: html = '<p>Unknown view state.</p>';
         }
     } catch (error) {
@@ -120,67 +173,31 @@ function renderView() {
 
 function renderAnalysisView() {
     const conversationAnalysis = modalState.conversationAnalysis || {};
-    const lastMessageAnalysis = conversationAnalysis.lastMessageAnalysis || {};
-    const valenceLabels = { '-1': 'Very Negative', '-0.5': 'Negative', '-0.1': 'Neutral', '0.5': 'Positive', '1': 'Very Positive' };
-    const arousalLabels = { '-1': 'Bored/Calm', '-0.5': 'Low Energy', '-0.1': 'Neutral', '0.5': 'Excited', '1': 'Agitated' };
 
     return `
         <h3>View 1: Basic Message Analysis</h3>
-        <table class="payload-table">
-            <tr><td colspan="2" class="table-section-header"><strong>Last Message Subtext</strong></td></tr>
-            <tr><td>Is Low Effort?</td><td>${createCheckbox('subtext-isLowEffort', 'conversationAnalysis.lastMessageAnalysis.isLowEffort', lastMessageAnalysis.isLowEffort)}</td></tr>
-            <tr><td>Is Sarcastic?</td><td>${createCheckbox('subtext-isSarcastic', 'conversationAnalysis.lastMessageAnalysis.isSarcastic', lastMessageAnalysis.isSarcastic)}</td></tr>
-            <tr><td>Is Ambiguous?</td><td>${createCheckbox('subtext-isAmbiguous', 'conversationAnalysis.lastMessageAnalysis.isAmbiguous', lastMessageAnalysis.isAmbiguous)}</td></tr>
-            <tr><td>Is Vulnerable?</td><td>${createCheckbox('subtext-isVulnerable', 'conversationAnalysis.lastMessageAnalysis.isVulnerable', lastMessageAnalysis.isVulnerable)}</td></tr>
-            <tr><td>Valence</td><td>${createSlider('subtext-valence', 'conversationAnalysis.lastMessageAnalysis.valence', lastMessageAnalysis.valence ?? 0, -1, 1, 0.1, valenceLabels)}</td></tr>
-            <tr><td>Arousal</td><td>${createSlider('subtext-arousal', 'conversationAnalysis.lastMessageAnalysis.arousal', lastMessageAnalysis.arousal ?? 0, -1, 1, 0.1, arousalLabels)}</td></tr>
-        </table>
-        ${createCollapsibleJSON('View/Edit Raw Analysis Object', modalState.conversationAnalysis)}
+        <p>This view shows the basic analysis of the conversation.</p>
+        ${createCollapsibleJSON('View/Edit Raw Analysis Object', conversationAnalysis)}
     `;
 }
 
 function renderAdvancedAnalysisView() {
-    const sexualAnalysis = modalState.sexualAnalysis || {};
-    const tensionLabels = { 0: 'None', 0.5: 'Subtle', 0.8: 'High', 1: 'Intense' };
-    const confidenceLabels = { 0: 'None', 0.5: 'Maybe', 0.8: 'Likely', 1: 'Certain' };
-    const paceOptions = ['slow', 'moderate', 'fast'];
+    const sexualAnalysis = modalState.conversationAnalysis?.sexualAnalysis || {};
     const styleOptions = ['direct_and_explicit', 'playful_and_teasing', 'romantic_and_sensual'];
-    const suggestionOptions = ['match_and_escalate', 'redirect_to_romance', 'clarify_and_respect_boundary'];
-    const archetypeOptions = ['The Romantic', 'The Adventurer', 'The Intellectual Seducer'];
 
-    const dateAnalysis = modalState.dateAnalysis || {};
-    const dateLogistics = dateAnalysis.dateLogistics || {};
-    const commitmentOptions = ['tentative', 'confirmed', 'imminent'];
-    const dateTypeOptions = ['coffee_date', 'dinner_and_drinks', 'casual_hangout'];
-    const vibeOptions = ['romantic', 'adventurous', 'intellectual'];
-    const initiatorOptions = ['user', 'match', 'mutual'];
+    const dateAnalysis = modalState.conversationAnalysis?.dateAnalysis || {};
 
     return `
         <h3>View 2: Advanced Analysis</h3>
         <table class="payload-table">
              <tr><td colspan="2" class="table-section-header"><strong>Sexual Analysis</strong></td></tr>
-            <tr><td>Sexual Tension</td><td>${createSlider('sexual-tension', 'sexualAnalysis.sexualTensionScore', sexualAnalysis.sexualTensionScore ?? 0, 0, 1, 0.1, tensionLabels)}</td></tr>
-            <tr><td>Intent Confidence</td><td>${createSlider('sexual-confidence', 'sexualAnalysis.sexualIntentConfidence', sexualAnalysis.sexualIntentConfidence ?? 0, 0, 1, 0.1, confidenceLabels)}</td></tr>
-            <tr><td>Escalation Pace</td><td>${createSelect('sexual-pace', 'sexualAnalysis.escalationPace', paceOptions, sexualAnalysis.escalationPace)}</td></tr>
-            <tr><td>Dominant/Submissive</td><td>${createSlider('sexual-domsub', 'sexualAnalysis.dominantSubmissiveScore', sexualAnalysis.dominantSubmissiveScore ?? 0, -1, 1, 0.1, { '-1': 'Submissive', 0: 'Neutral', 1: 'Dominant' })}</td></tr>
-            <tr><td>Communication Style</td><td>${createSelect('sexual-style', 'sexualAnalysis.sexualCommunicationStyle', styleOptions, sexualAnalysis.sexualCommunicationStyle)}</td></tr>
-            <tr><td>Response Suggestion</td><td>${createSelect('sexual-suggestion', 'sexualAnalysis.sexualResponseSuggestion', suggestionOptions, sexualAnalysis.sexualResponseSuggestion)}</td></tr>
-            <tr><td>Sexual Archetype</td><td>${createSelect('sexual-archetype', 'sexualAnalysis.sexualArchetype', archetypeOptions, sexualAnalysis.sexualArchetype)}</td></tr>
+            <tr><td>Communication Style</td><td>${createSelect('sexual-style', 'conversationAnalysis.sexualAnalysis.sexualCommunicationStyle', styleOptions, sexualAnalysis.sexualCommunicationStyle)}</td></tr>
         </table>
-        ${createCollapsibleJSON('View/Edit Raw Sexual Analysis', modalState.sexualAnalysis)}
+        ${createCollapsibleJSON('View/Edit Raw Sexual Analysis', sexualAnalysis)}
 
         <details class="modal-payload-details" style="margin-top: 1rem;">
             <summary>Date Analysis</summary>
-            <table class="payload-table">
-                <tr><td>Date Planned?</td><td>${createCheckbox('date-isPlanned', 'dateAnalysis.isDatePlanned', dateAnalysis.isDatePlanned)}</td></tr>
-                <tr><td>Commitment Level</td><td>${createSelect('date-commitment', 'dateAnalysis.dateCommitmentLevel', commitmentOptions, dateAnalysis.dateCommitmentLevel)}</td></tr>
-                <tr><td>Venue</td><td>${createInput('date-venue', 'dateAnalysis.dateLogistics.venue', dateLogistics.venue)}</td></tr>
-                <tr><td>Time (ISO)</td><td>${createInput('date-time', 'dateAnalysis.dateLogistics.time', dateLogistics.time)}</td></tr>
-                <tr><td>Date Type</td><td>${createSelect('date-type', 'dateAnalysis.dateType', dateTypeOptions, dateAnalysis.dateType)}</td></tr>
-                <tr><td>Date Vibe</td><td>${createSelect('date-vibe', 'dateAnalysis.dateVibe', vibeOptions, dateAnalysis.dateVibe)}</td></tr>
-                <tr><td>Who Initiated?</td><td>${createSelect('date-initiator', 'dateAnalysis.whoInitiated', initiatorOptions, dateAnalysis.whoInitiated)}</td></tr>
-            </table>
-            ${createCollapsibleJSON('View/Edit Raw Date Analysis', modalState.dateAnalysis)}
+            ${createCollapsibleJSON('View/Edit Raw Date Analysis', dateAnalysis)}
         </details>
     `;
 }
@@ -192,7 +209,6 @@ function renderMemoryView() {
         <table class="payload-table">
             <tr><td>Date Arc Phase</td><td>${createSelect('memory-dateArcPhase', 'conversationAnalysis.memory.dateArcPhase', DATE_ARC_PHASES, memory.dateArcPhase)}</td></tr>
             <tr><td>Inside Jokes (one per line)</td><td>${createTextarea('memory-insideJokes', 'conversationAnalysis.memory.insideJokes', (memory.insideJokes || []).join('\n'))}</td></tr>
-            <tr><td>Avoided Topics (one per line)</td><td>${createTextarea('memory-avoidedTopics', 'conversationAnalysis.memory.avoidedTopics', (memory.avoidedTopics || []).join('\n'))}</td></tr>
             <tr><td>Question History (one per line)</td><td>${createTextarea('memory-questionHistory', 'conversationAnalysis.memory.questionHistory', (memory.questionHistory || []).join('\n'))}</td></tr>
         </table>
         ${createCollapsibleJSON('View/Edit Raw Memory Object', memory)}
@@ -394,7 +410,17 @@ function updateStateFromUI(e) {
 function updateRawJsonDisplay(key) {
     const pre = document.querySelector(`.raw-json-area[data-object-key="${key}"]`);
     if (!pre) return;
-    const objectToDisplay = key === 'geoContextData' ? modalState.geoContextData : modalState[key];
+
+    let objectToDisplay;
+    if (key === 'geoContextData') {
+        objectToDisplay = modalState.geoContextData;
+    } else if (key === 'memory' || key === 'sexualAnalysis' || key === 'dateAnalysis') {
+        // These are nested within conversationAnalysis
+        objectToDisplay = modalState.conversationAnalysis?.[key];
+    } else {
+        objectToDisplay = modalState[key];
+    }
+
     pre.textContent = JSON.stringify(objectToDisplay, null, 2);
 }
 

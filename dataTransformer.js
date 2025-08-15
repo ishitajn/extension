@@ -76,25 +76,11 @@ export function transformAnalysis(newResponse) {
         // sexualAnalysis object
         sexualAnalysis: {
             sexualCommunicationStyle: safeGet(recommendedActions, 'sexualCommunicationStyle', 'playful_and_teasing'),
-            // These fields are no longer provided
-            sexualTensionScore: 0,
-            sexualIntentConfidence: 0,
-            escalationPace: 'moderate',
-            dominantSubmissiveScore: 0,
-            sexualResponseSuggestion: 'none',
-            sexualArchetype: 'The Romantic',
         },
 
         // dateAnalysis object
         dateAnalysis: {
             isVirtual: safeGet(recommendedActions, 'isVirtual', false),
-            // These fields are no longer provided
-            isDatePlanned: false,
-            dateCommitmentLevel: 'tentative',
-            dateLogistics: {},
-            dateType: 'coffee_date',
-            dateVibe: 'casual_hangout',
-            whoInitiated: 'user',
         }
     };
 

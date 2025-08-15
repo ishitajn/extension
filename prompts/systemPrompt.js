@@ -1,11 +1,11 @@
 import { validatePromptInputs, sanitizeInputs, ContentBuilder, CONTENT_PRIORITIES } from './promptUtils.js';
 
-export function getSystemPrompt(conversationAnalysis, timeContext) {
+export function getSystemPrompt(conversationAnalysis, timeContext, forceNewTopic) {
     try {
         validatePromptInputs({}, conversationAnalysis);
         const { sanitizedAnalysis } = sanitizeInputs({}, conversationAnalysis);
         
-        const { conversationState, lastMessageAnalysis, memory, forceNewTopic } = sanitizedAnalysis;
+        const { conversationState, lastMessageAnalysis, memory } = sanitizedAnalysis;
         
         const builder = new ContentBuilder();
         
@@ -45,12 +45,21 @@ function buildCorePrompt() {
 
 function buildDynamicGuidelines(lastMessageAnalysis, memory) {
     const guidelines = [];
-    
+
     if (lastMessageAnalysis?.isVulnerable) {
         guidelines.push('* **BE SUPPORTIVE:** Respond with warmth and validation.');
     }
     if (lastMessageAnalysis?.valence < -0.5) {
         guidelines.push('* **EMPATHIZE:** Acknowledge their feelings with empathy.');
+    }
+    if (lastMessageAnalysis?.isLowEffort) {
+        guidelines.push('* **LEAD THE CONVERSATION:** Their last message was low-effort. Take initiative with a new topic or question.');
+    }
+    if (lastMessageAnalysis?.isSarcastic) {
+        guidelines.push('* **MATCH SARCASM (optional):** Consider a witty or playful sarcastic response if it fits the overall tone.');
+    }
+    if (lastMessageAnalysis?.isAmbiguous) {
+        guidelines.push('* **SEEK CLARITY:** Their message is unclear. Ask a clarifying question or make a safe assumption.');
     }
     if (memory?.dateArcPhase === 'planning') {
         guidelines.push('* **SOLIDIFY PLANS:** Be confident about logistics.');
@@ -58,7 +67,7 @@ function buildDynamicGuidelines(lastMessageAnalysis, memory) {
     if (memory?.dateArcPhase === 'escalation') {
         guidelines.push('* **BUILD TENSION:** Focus on sexual/romantic tension.');
     }
-    
+
     return guidelines.length > 0 ? `**--- DYNAMIC GUIDELINES ---**
 ${guidelines.join('\n')}` : null;
 }

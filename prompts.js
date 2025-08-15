@@ -41,7 +41,7 @@ export function generatePrompts(data) {
         conversationBreakDetected: state.startsWith('REENGAGING'),
     };
 
-    const systemMessage = getSystemPrompt(conversationAnalysis, timeContext);
+    const systemMessage = getSystemPrompt(conversationAnalysis, timeContext, finalTaskInstructions.forceNewTopic);
     const contextMessage = buildContextPrompt(contextData, conversationAnalysis);
     // FIX: Pass conversationAnalysis explicitly to buildTaskPrompt
     const taskMessage = buildTaskPrompt(finalTaskInstructions, contextData, conversationAnalysis);
