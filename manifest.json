@@ -5,8 +5,14 @@
   "description": "A conversation co-pilot for dating chats. Provides expert, context-aware suggestions and strategic analysis.",
   "permissions": [
     "storage",
-    "geolocation"
+    "geolocation",
+    "declarativeContent",
+    "scripting",
+    "tabs"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

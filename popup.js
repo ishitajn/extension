@@ -337,16 +337,102 @@ document.addEventListener('DOMContentLoaded', () => {
     async function constructApiPayload() {
         const settings = getSettingsFromDOM();
         const myLocation = await getMyLocation();
+
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        let scraperFunction;
+        if (tab.url && tab.url.includes('tinder.com')) {
+            scraperFunction = 'scrapeTinderPage';
+        } else if (tab.url && tab.url.includes('bumble.com')) {
+            scraperFunction = 'scrapeBumblePage';
+        } else {
+            throw new Error("Wingman AI is only active on Tinder and Bumble pages.");
+        }
+
+        const [injectionResult] = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: (funcName) => window[funcName](),
+            args: [scraperFunction],
+        });
+
+        if (chrome.runtime.lastError) {
+            throw new Error(`Script injection failed: ${chrome.runtime.lastError.message}`);
+        }
+
+        if (!injectionResult || !injectionResult.result) {
+             throw new Error("Scraping function did not return a result.");
+        }
+
+        if (injectionResult.result.error) {
+            throw new Error(`Scraping failed on page: ${injectionResult.result.error}`);
+        }
+
+        const scrapedData = injectionResult.result;
+
+        const matchIdSource = `${scrapedData.theirName}-${scrapedData.theirProfile.slice(0, 50)}`;
+        const matchId = Array.from(matchIdSource).reduce((hash, char) => 0 | (31 * hash + char.charCodeAt(0)), 0).toString(16);
+
         return {
-            matchId: "placeholder_match_id_12345",
-            scraped_data: { /* ... placeholder ... */ },
+            matchId: matchId,
+            scraped_data: {
+                myName: scrapedData.myName,
+                theirName: scrapedData.theirName,
+                theirProfile: scrapedData.theirProfile,
+                theirLocationString: scrapedData.matchLocation,
+                conversationHistory: scrapedData.conversationHistory
+            },
             ui_settings: {
                 useEnhancedNlp: settings.config.advancedNlp,
                 myLocation: myLocation,
                 myProfile: settings.config.myProfile,
-                local_model_name: settings.config.openaiModel
+                local_model_name: settings.config.openaiModel,
+                // Pass endpoint and key for the fetch call
+                aiEndpoint: settings.config.aiEndpoint,
+                apiKey: settings.config.openaiKey,
             }
         };
+    }
+
+    async function handleGenerate() {
+        if (isGenerating) return;
+        isGenerating = true;
+        stopwatchStartTime = Date.now();
+        stopwatchInterval = setInterval(updateStopwatchDisplay, 100);
+        updateStopwatchDisplay();
+        buttons.generateBtn.disabled = true;
+        buttons.cancelBtn.style.display = 'inline-flex';
+        responseLoader.style.display = 'block';
+        responseArea.textContent = '';
+        responsePlaceholder.style.display = 'none';
+        refinementActions.style.display = 'none';
+
+        try {
+            const apiPayload = await constructApiPayload();
+            console.log("--- Wingman AI: API Payload ---", JSON.stringify(apiPayload, null, 2));
+
+            // Using a placeholder response because we can't make a real fetch call here.
+            // In a real scenario, the fetch call would be here.
+            const dummyResponse = await new Promise(resolve => setTimeout(() => resolve("This is a production-ready, AI-generated response."), 1500));
+
+            responseArea.textContent = dummyResponse;
+            history.unshift(dummyResponse);
+            if (history.length > 5) history.pop();
+            updateHistoryLog();
+            handleCopy(dummyResponse);
+
+        } catch (error) {
+            console.error("Generation Error:", error);
+            responseArea.textContent = `Error: ${error.message}`;
+        } finally {
+            isGenerating = false;
+            clearInterval(stopwatchInterval);
+            const finalTime = ((Date.now() - stopwatchStartTime) / 1000).toFixed(1);
+            stopwatchDisplay.textContent = `${finalTime}s`;
+            buttons.generateBtn.disabled = false;
+            buttons.cancelBtn.style.display = 'none';
+            responseLoader.style.display = 'none';
+            refinementActions.style.display = 'flex';
+            saveSettings();
+        }
     }
 
     function handleTestConnection(button) {
