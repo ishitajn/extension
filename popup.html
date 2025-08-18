@@ -160,33 +160,38 @@
                 </nav>
 
                 <div class="tabs-content">
+                    <!-- TUNE PANEL -->
                     <div id="tune-panel" role="tabpanel" aria-labelledby="tab-tune" class="tab-panel active">
                         <div class="form-group">
                             <label for="current-goal">Current Goal</label>
-                            <select id="current-goal" name="current-goal">
-                                <option>Build Rapport</option>
-                                <option>Secure a Date</option>
-                                <option>Get Phone Number</option>
-                                <option>Re-engage</option>
-                                <option>Playful Banter</option>
-                            </select>
+                            <select id="current-goal" name="current-goal"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="focus-topic">Focus Topic</label>
+                            <select id="focus-topic" name="focus-topic"></select>
                         </div>
                         <div class="form-group slider-group">
-                            <label for="flirt-level">Flirt Level: <span class="slider-value">50</span></label>
-                            <input type="range" id="flirt-level" name="flirt-level" min="0" max="100" value="50">
+                            <label for="flirt-level">Flirt Level: <span class="slider-value">0</span></label>
+                            <input type="range" id="flirt-level" name="flirt-level" min="0" max="100" value="0">
                         </div>
                         <div class="form-group slider-group">
-                            <label for="length-level">Length: <span class="slider-value">50</span></label>
-                            <input type="range" id="length-level" name="length-level" min="0" max="100" value="50">
+                            <label for="length">Length: <span class="slider-value">0</span></label>
+                            <input type="range" id="length" name="length" min="0" max="100" value="0">
                         </div>
                         <div class="form-group">
                             <label for="linguistic-style">Linguistic Style</label>
-                            <select id="linguistic-style" name="linguistic-style">
-                                <option>Witty</option>
-                                <option>Playful</option>
-                                <option>Formal</option>
-                                <option>Casual</option>
-                            </select>
+                            <select id="linguistic-style" name="linguistic-style"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="emoji-strategy">Emoji Strategy</label>
+                            <select id="emoji-strategy" name="emoji-strategy"></select>
+                        </div>
+                        <div class="form-group form-group-toggle">
+                            <label for="escalate-flirtation">Escalate Flirtation</label>
+                            <label class="switch">
+                                <input type="checkbox" id="escalate-flirtation" name="escalate-flirtation">
+                                <span class="slider-toggle round"></span>
+                            </label>
                         </div>
                         <details class="advanced-settings">
                             <summary>Advanced Settings</summary>
@@ -202,80 +207,82 @@
                             </div>
                         </details>
                     </div>
+
+                    <!-- ANALYSIS PANEL -->
                     <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-analysis" class="tab-panel">
                         <div class="analysis-group">
+                            <label>Date Arc Phase</label>
+                            <p id="analysis-date-arc">--</p>
+                        </div>
+                        <div class="analysis-group">
+                            <label>Sexual Tension</label>
+                            <div class="progress-bar"><div id="analysis-tension-bar" class="progress-bar-fill" style="width: 0%;"></div></div>
+                        </div>
+                        <div class="analysis-group">
                             <label>Overall Sentiment</label>
-                            <p id="sentiment-overall">--</p>
+                            <p id="analysis-sentiment">--</p>
+                        </div>
+                        <div class="analysis-group">
+                            <label>Conversation Stage</label>
+                            <p id="analysis-stage">--</p>
                         </div>
                         <div class="analysis-group">
                             <label>Reciprocity</label>
-                            <p id="reciprocity-balance">--</p>
+                            <p id="analysis-reciprocity">--</p>
                         </div>
-                        <div class="analysis-group">
-                            <label>Flirtation Level</label>
-                            <p id="flirtation-level">--</p>
+                        <div class="form-group">
+                            <label for="analysis-next-topic">Suggested Next Topic</label>
+                            <input type="text" id="analysis-next-topic" name="analysis-next-topic">
                         </div>
-                        <div class="analysis-group">
-                            <label>Date Arc</label>
-                            <div id="date-arc-stepper" class="stepper">
-                                <span>Intro</span><span class="stepper-line"></span>
-                                <span>Rapport</span><span class="stepper-line"></span>
-                                <span>Escalation</span>
-                            </div>
+                        <div class="form-group">
+                            <label for="analysis-escalate-topic">Escalate Topic</label>
+                            <input type="text" id="analysis-escalate-topic" name="analysis-escalate-topic">
                         </div>
-                         <div class="analysis-group">
-                            <label>Suggested Action</label>
-                            <p id="suggested-action-text">--</p>
+                         <div class="form-group">
+                            <label for="analysis-avoid-topic">Avoid Topic</label>
+                            <input type="text" id="analysis-avoid-topic" name="analysis-avoid-topic">
                         </div>
                     </div>
+
+                    <!-- GEO PANEL -->
                     <div id="geo-panel" role="tabpanel" aria-labelledby="tab-geo" class="tab-panel">
+                        <div class="analysis-group">
+                            <label>Virtual Conversation</label>
+                            <p id="geo-virtual">--</p>
+                        </div>
                         <table class="geo-table">
                             <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>You</th>
-                                    <th>Match</th>
-                                </tr>
+                                <tr><th></th><th>You</th><th>Match</th></tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td><label>Location</label></td>
-                                    <td id="geo-user-location">--</td>
-                                    <td id="geo-match-location">--</td>
-                                </tr>
-                                <tr>
-                                    <td><label>Time Zone</label></td>
-                                    <td id="geo-user-tz">--</td>
-                                    <td id="geo-match-tz">--</td>
-                                </tr>
-                                 <tr>
-                                    <td><label>Time of Day</label></td>
-                                    <td id="geo-user-time">--</td>
-                                    <td id="geo-match-time">--</td>
-                                </tr>
+                                <tr><td><label>Location</label></td><td id="geo-user-location">--</td><td id="geo-match-location">--</td></tr>
+                                <tr><td><label>Time of Day</label></td><td id="geo-user-time">--</td><td id="geo-match-time">--</td></tr>
                             </tbody>
                         </table>
-                        <div class="context-group" style="margin-top: 16px;">
+                        <div class="analysis-group">
                             <label>Distance (miles)</label>
                             <p id="geo-distance">--</p>
                         </div>
-                    </div>
-                    <div id="context-panel" role="tabpanel" aria-labelledby="tab-context" class="tab-panel">
-                         <div class="context-group">
-                            <button id="date-idea-btn" class="btn" style="width: 100%; display: none;">Suggest a Date Idea</button>
+                        <div class="analysis-group">
+                            <label>Time Difference (hrs)</label>
+                            <p id="geo-time-diff">--</p>
                         </div>
+                    </div>
+
+                    <!-- CONTEXT PANEL -->
+                    <div id="context-panel" role="tabpanel" aria-labelledby="tab-context" class="tab-panel">
                         <details open>
-                            <summary>Recent Generations</summary>
+                            <summary>Recent Topics</summary>
                             <ul id="history-log">
-                                <li>No generations yet.</li>
+                                <li>No topics yet.</li>
                             </ul>
                         </details>
                         <div class="debug-toggle">
+                            <label for="debug-toggle">Debug Mode</label>
                             <label class="switch">
                                 <input type="checkbox" id="debug-toggle">
                                 <span class="slider-toggle round"></span>
                             </label>
-                            <label for="debug-toggle">Debug Mode</label>
                         </div>
                         <div id="debug-output" class="debug-output">
                             <pre><code></code></pre>
