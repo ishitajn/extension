@@ -23,12 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabs = {
         tune: document.getElementById('tab-tune'),
         analysis: document.getElementById('tab-analysis'),
+        geo: document.getElementById('tab-geo'),
         context: document.getElementById('tab-context'),
     };
 
     const tabPanels = {
         tune: document.getElementById('tune-panel'),
         analysis: document.getElementById('analysis-panel'),
+        geo: document.getElementById('geo-panel'),
         context: document.getElementById('context-panel'),
     };
 
