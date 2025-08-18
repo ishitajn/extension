@@ -726,3 +726,29 @@ details[open] > summary::before {
     flex-basis: auto; /* Reset flex-basis */
     text-align: left; /* Reset text-align */
 }
+
+/* Geo Panel Table */
+.geo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.geo-table th, .geo-table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+.geo-table th {
+    color: var(--secondary-text);
+    font-weight: bold;
+}
+.geo-table td label {
+    font-weight: bold;
+    color: var(--secondary-text);
+}
+.geo-table td {
+    text-align: center;
+}
+.geo-table td:first-child {
+    text-align: left;
+}

@@ -204,29 +204,60 @@
                     </div>
                     <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-analysis" class="tab-panel">
                         <div class="analysis-group">
-                            <label>Date Arc</label>
-                            <div class="stepper">
-                                <span>Intro</span><span class="stepper-line"></span>
-                                <span class="active">Rapport</span><span class="stepper-line"></span>
-                                <span>Escalation</span>
-                            </div>
+                            <label>Overall Sentiment</label>
+                            <p id="sentiment-overall">--</p>
                         </div>
                         <div class="analysis-group">
-                            <label>Sexual Tension</label>
-                            <div class="progress-bar">
-                                <div class="progress-bar-fill" style="width: 30%;"></div>
+                            <label>Reciprocity</label>
+                            <p id="reciprocity-balance">--</p>
+                        </div>
+                        <div class="analysis-group">
+                            <label>Flirtation Level</label>
+                            <p id="flirtation-level">--</p>
+                        </div>
+                        <div class="analysis-group">
+                            <label>Date Arc</label>
+                            <div id="date-arc-stepper" class="stepper">
+                                <span>Intro</span><span class="stepper-line"></span>
+                                <span>Rapport</span><span class="stepper-line"></span>
+                                <span>Escalation</span>
                             </div>
                         </div>
                          <div class="analysis-group">
                             <label>Suggested Action</label>
-                            <p id="suggested-action-text">Ask an open-ended question about their profile.</p>
-                            <button id="apply-suggestion-btn" class="btn btn-sm">Apply</button>
+                            <p id="suggested-action-text">--</p>
                         </div>
                     </div>
                     <div id="geo-panel" role="tabpanel" aria-labelledby="tab-geo" class="tab-panel">
-                        <div class="context-group">
-                            <label>Geo-Time Context</label>
-                            <div class="context-placeholder">Geo-Time data is not available.</div>
+                        <table class="geo-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>You</th>
+                                    <th>Match</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><label>Location</label></td>
+                                    <td id="geo-user-location">--</td>
+                                    <td id="geo-match-location">--</td>
+                                </tr>
+                                <tr>
+                                    <td><label>Time Zone</label></td>
+                                    <td id="geo-user-tz">--</td>
+                                    <td id="geo-match-tz">--</td>
+                                </tr>
+                                 <tr>
+                                    <td><label>Time of Day</label></td>
+                                    <td id="geo-user-time">--</td>
+                                    <td id="geo-match-time">--</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="context-group" style="margin-top: 16px;">
+                            <label>Distance (miles)</label>
+                            <p id="geo-distance">--</p>
                         </div>
                     </div>
                     <div id="context-panel" role="tabpanel" aria-labelledby="tab-context" class="tab-panel">
