@@ -664,7 +664,7 @@ details[open] > summary::before {
     flex-shrink: 0;
 }
 
-/* --- V2 Layout Styles (Settings & Tune Panel) --- */
+/* --- V2 Layout Styles (Settings) --- */
 
 /* Settings Page Sub-sections */
 .sub-fieldset {
@@ -685,70 +685,18 @@ details[open] > summary::before {
     font-weight: bold;
 }
 
-/* Tune Panel Horizontal Layout */
-#tune-panel {
-    padding: 8px 4px;
+/* Re-style the advanced settings details to work in the vertical layout */
+.advanced-settings {
+    margin-top: 16px;
 }
-.tune-controls-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.advanced-settings > summary {
     padding: 8px;
     background-color: var(--header-input-bg);
     border-radius: 6px;
 }
-.tune-control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.tune-control-group label {
-    font-size: 11px;
-    text-align: center;
-    color: var(--secondary-text);
-    margin-bottom: 0;
-    white-space: nowrap;
-}
-.tune-control-group select {
-    padding: 4px;
-    font-size: 12px;
-}
-.tune-control-group.slider-group {
-    flex: 1;
-    min-width: 50px;
-}
-.tune-control-group.slider-group input[type="range"] {
-    height: 3px;
-    margin-top: 4px;
-}
 
-/* Advanced Settings Pop-out */
-.advanced-settings.tune-control-group {
-    position: relative;
-    margin-left: auto; /* Push to the end */
-}
-.advanced-settings summary {
-    font-size: 12px;
-    padding: 4px 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    cursor: pointer;
-    background: var(--card-bg);
-}
 .advanced-settings-content {
-    display: none;
-    position: absolute;
-    bottom: 100%;
-    right: 0;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 16px;
-    margin-bottom: 8px;
-    z-index: 10;
-    width: 280px;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
-}
-.advanced-settings[open] > .advanced-settings-content {
-    display: block;
+    padding: 16px 8px 0 8px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 8px;
 }

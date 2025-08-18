@@ -162,45 +162,46 @@
 
                 <div class="tabs-content">
                     <div id="tune-panel" role="tabpanel" aria-labelledby="tab-tune" class="tab-panel active">
-                        <div class="tune-controls-row">
-                            <div class="tune-control-group">
-                                <label for="current-goal">Goal</label>
-                                <select id="current-goal" name="current-goal">
-                                    <option>Build Rapport</option>
-                                    <option>Secure a Date</option>
-                                    <option>Get Phone Number</option>
-                                </select>
-                            </div>
-                            <div class="tune-control-group slider-group">
-                                <label for="flirt-level">Flirt: <span class="slider-value">50</span></label>
-                                <input type="range" id="flirt-level" min="0" max="100" value="50">
-                            </div>
-                            <div class="tune-control-group slider-group">
-                                <label for="length-level">Length: <span class="slider-value">50</span></label>
-                                <input type="range" id="length-level" min="0" max="100" value="50">
-                            </div>
-                             <div class="tune-control-group">
-                                <label for="linguistic-style">Style</label>
-                                <select id="linguistic-style" name="linguistic-style">
-                                    <option>Witty</option>
-                                    <option>Playful</option>
-                                    <option>Formal</option>
-                                </select>
-                            </div>
-                            <details class="advanced-settings tune-control-group">
-                                <summary>Advanced</summary>
-                                <div class="advanced-settings-content">
-                                    <div class="form-group slider-group">
-                                        <label for="creativity">Creativity (Temp): <span class="slider-value">0.7</span></label>
-                                        <input type="range" id="creativity" min="0" max="1" step="0.1" value="0.7">
-                                    </div>
-                                    <div class="form-group slider-group">
-                                        <label for="focus">Focus (Top-p): <span class="slider-value">0.9</span></label>
-                                        <input type="range" id="focus" min="0" max="1" step="0.1" value="0.9">
-                                    </div>
-                                </div>
-                            </details>
+                        <div class="form-group">
+                            <label for="current-goal">Current Goal</label>
+                            <select id="current-goal" name="current-goal">
+                                <option>Build Rapport</option>
+                                <option>Secure a Date</option>
+                                <option>Get Phone Number</option>
+                                <option>Re-engage</option>
+                                <option>Playful Banter</option>
+                            </select>
                         </div>
+                        <div class="form-group slider-group">
+                            <label for="flirt-level">Flirt Level: <span class="slider-value">50</span></label>
+                            <input type="range" id="flirt-level" name="flirt-level" min="0" max="100" value="50">
+                        </div>
+                        <div class="form-group slider-group">
+                            <label for="length-level">Length: <span class="slider-value">50</span></label>
+                            <input type="range" id="length-level" name="length-level" min="0" max="100" value="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="linguistic-style">Linguistic Style</label>
+                            <select id="linguistic-style" name="linguistic-style">
+                                <option>Witty</option>
+                                <option>Playful</option>
+                                <option>Formal</option>
+                                <option>Casual</option>
+                            </select>
+                        </div>
+                        <details class="advanced-settings">
+                            <summary>Advanced Settings</summary>
+                            <div class="advanced-settings-content">
+                                <div class="form-group slider-group">
+                                    <label for="creativity">Creativity (Temp): <span class="slider-value">0.7</span></label>
+                                    <input type="range" id="creativity" name="creativity" min="0" max="1" step="0.1" value="0.7">
+                                </div>
+                                <div class="form-group slider-group">
+                                    <label for="focus">Focus (Top-p): <span class="slider-value">0.9</span></label>
+                                    <input type="range" id="focus" name="focus" min="0" max="1" step="0.1" value="0.9">
+                                </div>
+                            </div>
+                        </details>
                     </div>
                     <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-analysis" class="tab-panel">
                         <div class="analysis-group">
