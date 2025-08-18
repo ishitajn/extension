@@ -398,6 +398,7 @@ input[type="range"]:hover::-moz-range-thumb { background: var(--accent); }
 
 .generate-actions {
     display: flex;
+    align-items: center;
     gap: 8px;
     margin-bottom: 12px;
 }
@@ -408,20 +409,31 @@ input[type="range"]:hover::-moz-range-thumb { background: var(--accent); }
     display: none;
 }
 
-/* Timer Bar */
-.sticky-timer-bar {
+.action-separator {
+    width: 1px;
+    height: 24px;
+    background-color: var(--border-color);
+    margin: 0 4px;
+}
+
+.timer-container {
     display: flex;
     align-items: center;
-    padding: 4px 8px;
-    background-color: var(--header-input-bg);
-    border-radius: 6px;
-    margin-bottom: 12px;
+    gap: 6px;
+    color: var(--secondary-text);
 }
-.timer-display {
-    flex-grow: 1;
-    text-align: center;
+
+.stopwatch-display {
     font-family: monospace;
-    font-size: 16px;
+    font-size: 14px;
+    min-width: 40px; /* Prevents layout shift */
+}
+
+.secondary-actions {
+    margin-left: auto; /* Pushes these buttons to the right */
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 /* Tabs */
