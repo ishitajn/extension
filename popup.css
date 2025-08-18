@@ -214,22 +214,27 @@ legend {
     text-transform: uppercase;
 }
 
-.form-group {
+.form-group, .analysis-group, .context-group, .debug-toggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 12px;
 }
-.form-group label {
+.form-group label, .analysis-group > label, .context-group > label, .debug-toggle > label:last-of-type {
     font-size: 13px;
     color: var(--secondary-text);
     flex-shrink: 0;
+    flex-basis: 140px;
+    text-align: left;
 }
 
 .form-group input,
 .form-group select,
-.form-group textarea {
+.form-group textarea,
+.analysis-group > div,
+.analysis-group > p,
+.context-group > div {
     flex-grow: 1;
     min-width: 0; /* Prevents overflow in flex containers */
 }

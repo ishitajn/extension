@@ -119,8 +119,7 @@
 
             <main class="app-content">
                 <section class="card response-card">
-                    <div id="response-area" contenteditable="true" aria-label="Generated Response" aria-live="polite" role="textbox"></div>
-                    <div id="response-placeholder">Your generated response will appear here...</div>
+                    <div id="response-area" aria-label="Generated Response" aria-live="polite" role="log" aria-readonly="true"></div>
                     <div id="response-loader" class="loader-dots">···</div>
                     <div id="response-error" class="inline-error"></div>
 
@@ -138,16 +137,15 @@
 
                 <div class="generate-actions">
                     <button id="generate-btn" class="btn btn-primary">Generate</button>
-                    <button id="cancel-btn" class="btn btn-danger">Cancel</button>
+                    <button id="copy-cancel-btn" class="icon-btn">
+                        <!-- Icon will be set by JS -->
+                    </button>
                     <div class="action-separator"></div>
                     <div class="timer-container" aria-label="Response time">
                         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
                         <span id="stopwatch-display" aria-live="polite">0.0s</span>
                     </div>
                     <div class="secondary-actions">
-                        <button id="copy-btn" class="icon-btn" aria-label="Copy Response">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                        </button>
                         <button id="variations-btn" class="icon-btn" aria-label="Get Variations">
                             <svg class="icon" viewBox="0 0 24 24"><path d="M20.5 15.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm-5 0c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zM3.5 15.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zM20.5 5.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zM3.5 5.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5z"/></svg>
                         </button>
