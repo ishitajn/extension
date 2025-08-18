@@ -164,27 +164,47 @@
                     <div id="tune-panel" role="tabpanel" aria-labelledby="tab-tune" class="tab-panel active">
                         <div class="form-group">
                             <label for="current-goal">Current Goal</label>
-                            <select id="current-goal" name="current-goal"></select>
+                            <select id="current-goal" name="current-goal">
+                                <option>PLAN_DATE</option>
+                                <option>Build Rapport</option>
+                                <option>Get Phone Number</option>
+                                <option>Re-engage</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="focus-topic">Focus Topic</label>
-                            <select id="focus-topic" name="focus-topic"></select>
+                            <select id="focus-topic" name="focus-topic">
+                                <option>sexual</option>
+                                <option>travel</option>
+                                <option>food</option>
+                                <option>career</option>
+                            </select>
                         </div>
                         <div class="form-group slider-group">
-                            <label for="flirt-level">Flirt Level: <span class="slider-value">0</span></label>
+                            <label for="flirt-level" class="tooltip">Flirt Level: <span class="slider-value">0</span><i class="info-icon">i</i><span class="tooltip-text">Controls the intensity of romantic and playful language.</span></label>
                             <input type="range" id="flirt-level" name="flirt-level" min="0" max="100" value="0">
                         </div>
                         <div class="form-group slider-group">
-                            <label for="length">Length: <span class="slider-value">0</span></label>
+                            <label for="length" class="tooltip">Length: <span class="slider-value">0</span><i class="info-icon">i</i><span class="tooltip-text">Sets the target length of the generated response.</span></label>
                             <input type="range" id="length" name="length" min="0" max="100" value="0">
                         </div>
                         <div class="form-group">
                             <label for="linguistic-style">Linguistic Style</label>
-                            <select id="linguistic-style" name="linguistic-style"></select>
+                            <select id="linguistic-style" name="linguistic-style">
+                                <option>casual</option>
+                                <option>witty</option>
+                                <option>formal</option>
+                                <option>playful</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="emoji-strategy">Emoji Strategy</label>
-                            <select id="emoji-strategy" name="emoji-strategy"></select>
+                            <select id="emoji-strategy" name="emoji-strategy">
+                                <option>auto</option>
+                                <option>none</option>
+                                <option>minimal</option>
+                                <option>expressive</option>
+                            </select>
                         </div>
                         <div class="form-group form-group-toggle">
                             <label for="escalate-flirtation">Escalate Flirtation</label>
@@ -232,15 +252,24 @@
                         </div>
                         <div class="form-group">
                             <label for="analysis-next-topic">Suggested Next Topic</label>
-                            <input type="text" id="analysis-next-topic" name="analysis-next-topic">
+                            <div class="input-with-icon">
+                                <input type="text" id="analysis-next-topic" name="analysis-next-topic" readonly>
+                                <i class="info-icon edit-icon">...</i>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="analysis-escalate-topic">Escalate Topic</label>
-                            <input type="text" id="analysis-escalate-topic" name="analysis-escalate-topic">
+                             <div class="input-with-icon">
+                                <input type="text" id="analysis-escalate-topic" name="analysis-escalate-topic" readonly>
+                                <i class="info-icon edit-icon">...</i>
+                            </div>
                         </div>
                          <div class="form-group">
                             <label for="analysis-avoid-topic">Avoid Topic</label>
-                            <input type="text" id="analysis-avoid-topic" name="analysis-avoid-topic">
+                             <div class="input-with-icon">
+                                <input type="text" id="analysis-avoid-topic" name="analysis-avoid-topic" readonly>
+                                <i class="info-icon edit-icon">...</i>
+                            </div>
                         </div>
                     </div>
 

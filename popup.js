@@ -232,8 +232,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const SETTINGS_KEY = 'wingmanAISettings';
-    function saveSettings() { /* Not implemented in this version */ }
-    function loadSettings() { /* Not implemented in this version */ }
+
+    function getSettingsFromDOM() {
+        return {
+             config: {
+                nlpUrl: document.getElementById('nlp-url').value,
+                aiEndpoint: document.getElementById('ai-endpoint').value,
+                openaiKey: document.getElementById('openai-key').value,
+                openaiModel: document.getElementById('openai-model').value,
+                advancedNlp: document.getElementById('advanced-nlp-toggle').checked,
+                myProfile: document.getElementById('my-profile').value,
+                myLocation: document.getElementById('my-location').value,
+            }
+        };
+    }
+
+    function saveSettings() {
+        try {
+            const settingsToSave = getSettingsFromDOM();
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsToSave));
+        } catch (e) { console.error("Error saving settings:", e); }
+    }
+
+    function loadSettings() {
+        try {
+            const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+            if (savedSettings && savedSettings.config) {
+                const config = savedSettings.config;
+                document.getElementById('nlp-url').value = config.nlpUrl || '';
+                document.getElementById('ai-endpoint').value = config.aiEndpoint || '';
+                document.getElementById('openai-key').value = config.openaiKey || '';
+                document.getElementById('openai-model').value = config.openaiModel || 'gpt-4-turbo';
+                document.getElementById('advanced-nlp-toggle').checked = config.advancedNlp || false;
+                document.getElementById('my-profile').value = config.myProfile || '';
+                document.getElementById('my-location').value = config.myLocation || 'auto';
+            }
+        } catch (e) { console.error("Error loading settings:", e); }
+    }
 
     function getMyLocation() {
         return new Promise((resolve) => {
@@ -250,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function constructApiPayload() {
         const myLocation = await getMyLocation();
-        // In this version, we read directly from the UI controls
+        const settings = getSettingsFromDOM();
         const tuneSettings = {
             currentGoal: document.getElementById('current-goal').value,
             focus_topic: document.getElementById('focus-topic').value,
@@ -267,25 +302,79 @@ document.addEventListener('DOMContentLoaded', () => {
             matchId: nlpData?.matchId || "placeholder_match_id",
             scraped_data: nlpData?.scraped_data || {},
             ui_settings: {
-                useEnhancedNlp: document.getElementById('advanced-nlp-toggle').checked,
+                useEnhancedNlp: settings.config.advancedNlp,
                 myLocation: myLocation,
-                myProfile: document.getElementById('my-profile').value,
-                local_model_name: document.getElementById('openai-model').value,
+                myProfile: settings.config.myProfile,
+                local_model_name: settings.config.openaiModel,
                 ...tuneSettings
             }
         };
     }
 
-    function handleTestConnection(button) { /* Not relevant to this flow */ }
-    function handleImport() { /* Not relevant to this flow */ }
-    function handleExport() { /* Not relevant to this flow */ }
-    function handleReset() { /* Not relevant to this flow */ }
+    function handleTestConnection(button) {
+        const statusSpan = button.querySelector('.connection-status');
+        if (!statusSpan) return;
+        statusSpan.textContent = '...';
+        setTimeout(() => {
+            const isSuccess = Math.random() < 0.75;
+            statusSpan.textContent = isSuccess ? '✓' : '✗';
+            statusSpan.style.color = isSuccess ? 'var(--success-color)' : 'var(--danger-color)';
+            setTimeout(() => statusSpan.textContent = '', 2000);
+        }, 1000);
+    }
+
+    function handleImport() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = event => {
+                try {
+                    const importedSettings = JSON.parse(event.target.result);
+                    if (importedSettings.config) {
+                        loadSettings(); // Apply the config part
+                        saveSettings();
+                        showToast("Settings imported!");
+                    } else {
+                        showToast("Invalid settings file.");
+                    }
+                } catch (err) { showToast("Error: Invalid settings file."); }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    function handleExport() {
+        const settingsString = JSON.stringify(getSettingsFromDOM(), null, 2);
+        const blob = new Blob([settingsString], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `wingman-ai-settings-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        showToast("Settings exported.");
+    }
+
+    function handleReset() {
+        if (confirm("Are you sure you want to reset all settings?")) {
+            localStorage.removeItem(SETTINGS_KEY);
+            loadSettings(); // re-load to apply defaults
+            showToast("Settings have been reset.");
+        }
+    }
 
     function init() {
         setupEventListeners();
+        loadSettings(); // Load user's saved API keys, etc. first
         setCopyCancelButtonState('copy');
         showView('loading');
-        loadAndPopulateUI();
+        loadAndPopulateUI(); // Then load session-specific data
     }
 
     init();

@@ -481,15 +481,66 @@ input[type="range"]:hover::-moz-range-thumb { background: var(--accent); }
 .tab-panel {
     display: none;
     padding: 16px 4px;
-    animation: fadeIn 0.3s;
 }
 .tab-panel.active {
     display: block;
+    animation: fadeIn 0.4s ease-in-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.btn:active, .icon-btn:active {
+    transform: scale(0.97);
+    filter: brightness(0.95);
+}
+
+.tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.tooltip .info-icon {
+    margin-left: 6px;
+    font-style: normal;
+    font-weight: bold;
+    color: var(--secondary-text);
+    border: 1px solid var(--secondary-text);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 10px;
+    cursor: help;
+    user-select: none;
+}
+.tooltip .tooltip-text {
+    visibility: hidden;
+    width: 220px;
+    background-color: var(--card-bg);
+    color: var(--primary-text);
+    text-align: left;
+    border-radius: 6px;
+    padding: 10px;
+    position: absolute;
+    z-index: 10;
+    bottom: 150%;
+    left: 50%;
+    margin-left: -110px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 12px;
+    font-weight: normal;
+}
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
 }
 
 /* Analysis Panel */
@@ -722,6 +773,39 @@ details[open] > summary::before {
     color: var(--accent);
     text-align: right;
 }
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+}
+.input-with-icon input[readonly] {
+    background-color: var(--primary-bg);
+    cursor: not-allowed;
+    padding-right: 30px; /* Space for icon */
+}
+.edit-icon {
+    position: absolute;
+    right: 8px;
+    cursor: pointer;
+    font-style: normal;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--secondary-text);
+}
+.edit-icon:hover {
+    color: var(--primary-text);
+}
+
+/* Fix toggle button width */
+.form-group-toggle {
+    justify-content: flex-start;
+}
+.form-group-toggle label:first-child {
+    flex-grow: 0; /* Prevent it from growing */
+}
+
 
 /* Revert settings page to stacked layout */
 #settings-view .form-group {
