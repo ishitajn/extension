@@ -131,7 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
     buttons.cancelBtn.addEventListener('click', handleCancel);
 
     // Settings Buttons (stubs)
-    buttons.testConnectionBtn.addEventListener('click', handleTestConnection);
+    document.getElementById('test-nlp-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
+    document.getElementById('test-llm-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
     buttons.importSettingsBtn.addEventListener('click', handleImport);
     buttons.exportSettingsBtn.addEventListener('click', handleExport);
     buttons.resetDefaultsBtn.addEventListener('click', handleReset);
@@ -262,10 +263,10 @@ document.addEventListener('DOMContentLoaded', () => {
         stopwatchDisplay.textContent = `${elapsedTime.toFixed(1)}s`;
     }
 
-
-    function constructApiPayload() {
+    function getMyLocation() {
         const settings = getSettingsFromDOM();
-        // Using placeholder data for scraped_data and matchId as the UI doesn't have this.
+        const myLocation = await getMyLocation();
+
         const payload = {
             matchId: "placeholder_match_id_12345",
             scraped_data: {
@@ -280,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             ui_settings: {
                 useEnhancedNlp: settings.config.advancedNlp,
-                myLocation: settings.config.myLocation,
+                myLocation: myLocation,
                 myProfile: settings.config.myProfile,
                 local_model_name: settings.config.openaiModel
             }
@@ -288,18 +289,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return payload;
     }
 
-    function handleGenerate() {
+    async function handleGenerate() {
         if (isGenerating) return;
-
-        const apiPayload = constructApiPayload();
-        console.log("--- Wingman AI: API Payload ---");
-        console.log(JSON.stringify(apiPayload, null, 2));
-        console.log("---------------------------------");
 
         isGenerating = true;
         stopwatchStartTime = Date.now();
         stopwatchInterval = setInterval(updateStopwatchDisplay, 100);
         updateStopwatchDisplay();
+
+        // Construct payload (now async)
+        const apiPayload = await constructApiPayload();
+        console.log("--- Wingman AI: API Payload ---");
+        console.log(JSON.stringify(apiPayload, null, 2));
+        console.log("---------------------------------");
 
         // Update UI for loading state
         buttons.generateBtn.disabled = true;
@@ -394,8 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2000);
     }
 
-    function handleTestConnection() {
-        const statusSpan = document.getElementById('connection-status');
+    function handleTestConnection(button) {
+        const statusSpan = button.querySelector('.connection-status');
         if (!statusSpan) return;
 
         statusSpan.textContent = 'Testing...';
@@ -403,20 +405,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Simulate API call
         setTimeout(() => {
-            // Simulate a 75% chance of success
             const isSuccess = Math.random() < 0.75;
             if (isSuccess) {
-                statusSpan.textContent = 'Success!';
+                statusSpan.textContent = '✓';
                 statusSpan.style.color = 'var(--success-color)';
             } else {
-                statusSpan.textContent = 'Failed!';
+                statusSpan.textContent = '✗';
                 statusSpan.style.color = 'var(--danger-color)';
             }
-             // Clear the message after a few seconds
             setTimeout(() => {
                 statusSpan.textContent = '';
-            }, 3000);
-        }, 1500);
+            }, 2000);
+        }, 1000);
     }
 
     function handleImport() {
@@ -485,12 +485,12 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             config: {
                 nlpUrl: document.getElementById('nlp-url').value,
+                aiEndpoint: document.getElementById('ai-endpoint').value,
                 openaiKey: document.getElementById('openai-key').value,
                 openaiModel: document.getElementById('openai-model').value,
                 advancedNlp: document.getElementById('advanced-nlp-toggle').checked,
                 myProfile: document.getElementById('my-profile').value,
                 myLocation: document.getElementById('my-location').value,
-                timerDefault: document.getElementById('timer-default').value,
                 lastResponseTime: stopwatchDisplay.textContent
             }
         };
@@ -517,12 +517,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (settings.config) {
             const config = settings.config;
             document.getElementById('nlp-url').value = config.nlpUrl || '';
+            document.getElementById('ai-endpoint').value = config.aiEndpoint || '';
             document.getElementById('openai-key').value = config.openaiKey || '';
             document.getElementById('openai-model').value = config.openaiModel || 'gpt-4-turbo';
             document.getElementById('advanced-nlp-toggle').checked = config.advancedNlp || false;
             document.getElementById('my-profile').value = config.myProfile || '';
-            document.getElementById('my-location').value = config.myLocation || '';
-            document.getElementById('timer-default').value = config.timerDefault || 10;
+            document.getElementById('my-location').value = config.myLocation || 'auto';
             stopwatchDisplay.textContent = config.lastResponseTime || '0.0s';
         }
 

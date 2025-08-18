@@ -36,21 +36,48 @@
                 <form id="settings-form">
                     <fieldset>
                         <legend>Connection Details</legend>
-                        <div class="form-group">
-                            <label for="nlp-url">NLP Service URL</label>
-                            <input type="url" id="nlp-url" name="nlp-url" placeholder="https://api.example.com/nlp">
+
+                        <div class="sub-fieldset">
+                            <h4 class="sub-legend">NLP</h4>
+                            <div class="form-group">
+                                <label for="nlp-url">NLP Service URL</label>
+                                <input type="url" id="nlp-url" name="nlp-url" placeholder="https://api.example.com/nlp">
+                            </div>
+                            <button id="test-nlp-btn" type="button" class="btn btn-sm">Test NLP <span class="connection-status"></span></button>
                         </div>
-                        <div class="form-group">
-                            <label for="openai-key">OpenAI API Key</label>
-                            <input type="password" id="openai-key" name="openai-key" placeholder="sk-...">
+
+                        <div class="sub-fieldset">
+                            <h4 class="sub-legend">LLM</h4>
+                            <div class="form-group">
+                                <label for="ai-endpoint">AI Endpoint</label>
+                                <input type="url" id="ai-endpoint" name="ai-endpoint" placeholder="https://api.openai.com/v1">
+                            </div>
+                             <div class="form-group">
+                                <label for="openai-key">API Key</label>
+                                <input type="password" id="openai-key" name="openai-key" placeholder="sk-...">
+                            </div>
+                            <div class="form-group">
+                                <label for="openai-model">Model Name</label>
+                                <input type="text" id="openai-model" name="openai-model" placeholder="gpt-4-turbo">
+                            </div>
+                            <button id="test-llm-btn" type="button" class="btn btn-sm">Test LLM <span class="connection-status"></span></button>
                         </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Global Defaults</legend>
                         <div class="form-group">
-                            <label for="openai-model">OpenAI Model</label>
-                            <select id="openai-model" name="openai-model">
-                                <option value="gpt-4">GPT-4</option>
-                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            <label for="my-location">My Location</label>
+                            <select id="my-location" name="my-location">
+                                <option value="auto">Auto-detect</option>
+                                <option value="New York, NY">New York, NY</option>
+                                <option value="London, UK">London, UK</option>
+                                <option value="Tokyo, JP">Tokyo, JP</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="my-profile">My Profile</label>
+                            <textarea id="my-profile" name="my-profile" rows="3" placeholder="Describe yourself, your interests, and your communication style..."></textarea>
                         </div>
                         <div class="form-group form-group-toggle">
                             <label for="advanced-nlp-toggle">Enable Advanced NLP Analysis</label>
@@ -58,37 +85,6 @@
                                 <input type="checkbox" id="advanced-nlp-toggle" name="advanced-nlp-toggle">
                                 <span class="slider-toggle round"></span>
                             </label>
-                        </div>
-                         <button id="test-connection-btn" type="button" class="btn">Test Connection <span id="connection-status"></span></button>
-                    </fieldset>
-
-                    <fieldset>
-                        <legend>Global Defaults</legend>
-                        <div class="form-group">
-                            <label for="my-location">My Location</label>
-                            <input type="text" id="my-location" name="my-location" placeholder="e.g., New York, NY">
-                        </div>
-                        <div class="form-group">
-                            <label for="my-profile">My Profile</label>
-                            <textarea id="my-profile" name="my-profile" rows="4" placeholder="Describe yourself, your interests, and your communication style..."></textarea>
-                        </div>
-                        <div class="form-group preset-buttons">
-                            <button id="save-preset-btn" type="button" class="btn">Save as Preset</button>
-                            <select id="load-preset-select" name="load-preset-select">
-                                <option value="">Load Preset...</option>
-                            </select>
-                        </div>
-                    </fieldset>
-
-                    <fieldset>
-                        <legend>Timer Configuration</legend>
-                        <div class="form-group">
-                            <label for="timer-default">Default Timer (minutes)</label>
-                            <select id="timer-default" name="timer-default">
-                                <option value="5">5</option>
-                                <option value="10" selected>10</option>
-                                <option value="15">15</option>
-                            </select>
                         </div>
                     </fieldset>
 
@@ -166,45 +162,45 @@
 
                 <div class="tabs-content">
                     <div id="tune-panel" role="tabpanel" aria-labelledby="tab-tune" class="tab-panel active">
-                        <div class="form-group">
-                            <label for="current-goal">Current Goal</label>
-                            <select id="current-goal" name="current-goal">
-                                <option>Build Rapport</option>
-                                <option>Secure a Date</option>
-                                <option>Get Phone Number</option>
-                                <option>Re-engage</option>
-                                <option>Playful Banter</option>
-                            </select>
-                        </div>
-                        <div class="form-group slider-group">
-                            <label for="flirt-level">Flirt Level: <span class="slider-value">50</span></label>
-                            <input type="range" id="flirt-level" min="0" max="100" value="50">
-                        </div>
-                        <div class="form-group slider-group">
-                            <label for="length-level">Length: <span class="slider-value">50</span></label>
-                            <input type="range" id="length-level" min="0" max="100" value="50">
-                        </div>
-                        <div class="form-group">
-                            <label for="linguistic-style">Linguistic Style</label>
-                            <select id="linguistic-style" name="linguistic-style">
-                                <option value="" disabled selected>e.g., witty, playful</option>
-                                <option>Witty</option>
-                                <option>Playful</option>
-                                <option>Formal</option>
-                                <option>Casual</option>
-                            </select>
-                        </div>
-                        <details class="advanced-settings">
-                            <summary>Advanced Settings</summary>
-                            <div class="form-group slider-group">
-                                <label for="creativity">Creativity (Temp): <span class="slider-value">0.7</span></label>
-                                <input type="range" id="creativity" min="0" max="1" step="0.1" value="0.7">
+                        <div class="tune-controls-row">
+                            <div class="tune-control-group">
+                                <label for="current-goal">Goal</label>
+                                <select id="current-goal" name="current-goal">
+                                    <option>Build Rapport</option>
+                                    <option>Secure a Date</option>
+                                    <option>Get Phone Number</option>
+                                </select>
                             </div>
-                            <div class="form-group slider-group">
-                                <label for="focus">Focus (Top-p): <span class="slider-value">0.9</span></label>
-                                <input type="range" id="focus" min="0" max="1" step="0.1" value="0.9">
+                            <div class="tune-control-group slider-group">
+                                <label for="flirt-level">Flirt: <span class="slider-value">50</span></label>
+                                <input type="range" id="flirt-level" min="0" max="100" value="50">
                             </div>
-                        </details>
+                            <div class="tune-control-group slider-group">
+                                <label for="length-level">Length: <span class="slider-value">50</span></label>
+                                <input type="range" id="length-level" min="0" max="100" value="50">
+                            </div>
+                             <div class="tune-control-group">
+                                <label for="linguistic-style">Style</label>
+                                <select id="linguistic-style" name="linguistic-style">
+                                    <option>Witty</option>
+                                    <option>Playful</option>
+                                    <option>Formal</option>
+                                </select>
+                            </div>
+                            <details class="advanced-settings tune-control-group">
+                                <summary>Advanced</summary>
+                                <div class="advanced-settings-content">
+                                    <div class="form-group slider-group">
+                                        <label for="creativity">Creativity (Temp): <span class="slider-value">0.7</span></label>
+                                        <input type="range" id="creativity" min="0" max="1" step="0.1" value="0.7">
+                                    </div>
+                                    <div class="form-group slider-group">
+                                        <label for="focus">Focus (Top-p): <span class="slider-value">0.9</span></label>
+                                        <input type="range" id="focus" min="0" max="1" step="0.1" value="0.9">
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
                     </div>
                     <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-analysis" class="tab-panel">
                         <div class="analysis-group">
