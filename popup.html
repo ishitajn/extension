@@ -43,6 +43,13 @@
                                 <label for="nlp-url">NLP Service URL</label>
                                 <input type="url" id="nlp-url" name="nlp-url" placeholder="https://api.example.com/nlp">
                             </div>
+                            <div class="form-group form-group-toggle">
+                                <label for="advanced-nlp-toggle">Enable Advanced NLP Analysis</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="advanced-nlp-toggle" name="advanced-nlp-toggle">
+                                    <span class="slider-toggle round"></span>
+                                </label>
+                            </div>
                             <button id="test-nlp-btn" type="button" class="btn btn-sm">Test NLP <span class="connection-status"></span></button>
                         </div>
 
@@ -78,13 +85,6 @@
                         <div class="form-group">
                             <label for="my-profile">My Profile</label>
                             <textarea id="my-profile" name="my-profile" rows="3" placeholder="Describe yourself, your interests, and your communication style..."></textarea>
-                        </div>
-                        <div class="form-group form-group-toggle">
-                            <label for="advanced-nlp-toggle">Enable Advanced NLP Analysis</label>
-                            <label class="switch">
-                                <input type="checkbox" id="advanced-nlp-toggle" name="advanced-nlp-toggle">
-                                <span class="slider-toggle round"></span>
-                            </label>
                         </div>
                     </fieldset>
 

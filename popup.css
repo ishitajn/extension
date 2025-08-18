@@ -215,13 +215,23 @@ legend {
 }
 
 .form-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-bottom: 12px;
 }
 .form-group label {
-    display: block;
-    margin-bottom: 6px;
     font-size: 13px;
     color: var(--secondary-text);
+    flex-shrink: 0;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    flex-grow: 1;
+    min-width: 0; /* Prevents overflow in flex containers */
 }
 
 /* --- Custom Toggle Switch --- */
