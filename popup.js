@@ -8,20 +8,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const buttons = {
-        // Main View
         settingsBtn: document.getElementById('settings-btn'),
         generateBtn: document.getElementById('generate-btn'),
         copyBtn: document.getElementById('copy-btn'),
         cancelBtn: document.getElementById('cancel-btn'),
-        resetMatchBtn: document.getElementById('reset-match-btn'),
         variationsBtn: document.getElementById('variations-btn'),
-        // Settings View
         backToMainBtn: document.getElementById('back-to-main-btn'),
         importSettingsBtn: document.getElementById('import-settings-btn'),
         exportSettingsBtn: document.getElementById('export-settings-btn'),
         resetDefaultsBtn: document.getElementById('reset-defaults-btn'),
-        // Error View
         retryBtn: document.getElementById('retry-btn'),
+        applySuggestionBtn: document.getElementById('apply-suggestion-btn'),
     };
 
     const tabs = {
@@ -52,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- State Management ---
-    let activeView = 'loading';
     let isGenerating = false;
     let generationTimeout;
     let history = [];
@@ -62,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- View Management ---
     function showView(viewId) {
-        activeView = viewId;
         for (const id in views) {
             views[id].classList.remove('active');
         }
@@ -73,14 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (viewId === 'main') {
                  responseArea.focus();
             }
-        } else {
-            console.error(`View with ID "${viewId}" not found.`);
         }
     }
 
     // --- Event Listeners ---
     function setupEventListeners() {
-        // Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             const isMetaKey = e.metaKey || e.ctrlKey;
             if (e.key === 'Enter' && !e.target.matches('textarea, [contenteditable]')) {
@@ -98,32 +90,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Navigation
         buttons.settingsBtn.addEventListener('click', () => showView('settings'));
         buttons.backToMainBtn.addEventListener('click', () => showView('main'));
         buttons.retryBtn.addEventListener('click', () => {
             showView('loading');
-            setTimeout(() => showView('main'), 1500);
+            setTimeout(() => showView('main'), 1000);
         });
-
-        // Main Actions
         buttons.generateBtn.addEventListener('click', handleGenerate);
         buttons.copyBtn.addEventListener('click', () => handleCopy(responseArea.textContent));
         buttons.cancelBtn.addEventListener('click', handleCancel);
-
-        // Settings Actions
         document.getElementById('test-nlp-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
         document.getElementById('test-llm-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
         buttons.importSettingsBtn.addEventListener('click', handleImport);
         buttons.exportSettingsBtn.addEventListener('click', handleExport);
         buttons.resetDefaultsBtn.addEventListener('click', handleReset);
 
-        // Tab Navigation
         Object.values(tabs).forEach(tab => {
             tab.addEventListener('click', (e) => handleTabClick(e.currentTarget));
         });
 
-        // Interactive Controls
         responseArea.addEventListener('input', () => {
             responsePlaceholder.style.display = responseArea.textContent.trim() ? 'none' : 'block';
         });
@@ -145,12 +130,20 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('tune-panel').addEventListener('change', saveSettings);
         historyLog.addEventListener('click', (e) => {
             if (e.target.classList.contains('copy-history-btn')) {
-                const textToCopy = e.target.previousElementSibling.textContent;
-                handleCopy(textToCopy);
+                handleCopy(e.target.previousElementSibling.textContent);
             }
         });
         debugToggle.addEventListener('change', () => {
-            debugOutput.style.display = debugToggle.checked ? 'block' : 'none';
+            if(debugOutput) debugOutput.style.display = debugToggle.checked ? 'block' : 'none';
+        });
+        buttons.applySuggestionBtn.addEventListener('click', () => {
+            const suggestionText = document.getElementById('suggested-action-text')?.textContent;
+            if (suggestionText) {
+                customInstruction.value = suggestionText;
+                customInstruction.focus();
+                customInstruction.dispatchEvent(new Event('input'));
+                showToast("Suggestion applied!");
+            }
         });
     }
 
@@ -178,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleGenerate() {
         if (isGenerating) return;
-
         isGenerating = true;
         stopwatchStartTime = Date.now();
         stopwatchInterval = setInterval(updateStopwatchDisplay, 100);
@@ -189,35 +181,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         buttons.generateBtn.disabled = true;
         buttons.cancelBtn.style.display = 'inline-flex';
-        buttons.variationsBtn.style.display = 'none';
-        buttons.copyBtn.style.display = 'none';
         refinementActions.style.display = 'none';
         responseLoader.style.display = 'block';
-        responsePlaceholder.style.display = 'none';
-        responseArea.textContent = '';
 
         generationTimeout = setTimeout(() => {
             if (!isGenerating) return;
             isGenerating = false;
-
             clearInterval(stopwatchInterval);
             const finalTime = ((Date.now() - stopwatchStartTime) / 1000).toFixed(1);
             stopwatchDisplay.textContent = `${finalTime}s`;
 
             const dummyResponse = "This is a witty and engaging response generated by Wingman AI. How does this look?";
             responseArea.textContent = dummyResponse;
-
+            responsePlaceholder.style.display = 'none';
             history.unshift(dummyResponse);
             if (history.length > 5) history.pop();
             updateHistoryLog();
-
             const debugData = { request: apiPayload, response: { text: dummyResponse }, latency: `${finalTime}s` };
             debugOutput.querySelector('code').textContent = JSON.stringify(debugData, null, 2);
 
             buttons.generateBtn.disabled = false;
             buttons.cancelBtn.style.display = 'none';
-            buttons.copyBtn.style.display = 'inline-flex';
-            buttons.variationsBtn.style.display = 'inline-flex';
             refinementActions.style.display = 'flex';
             responseLoader.style.display = 'none';
 
@@ -232,31 +216,17 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(generationTimeout);
         clearInterval(stopwatchInterval);
         stopwatchStartTime = null;
-
         buttons.generateBtn.disabled = false;
         buttons.cancelBtn.style.display = 'none';
-        buttons.copyBtn.style.display = 'inline-flex';
         responseLoader.style.display = 'none';
-
-        if (!responseArea.textContent) {
-            responsePlaceholder.style.display = 'block';
-        }
-        const savedSettings = JSON.parse(localStorage.getItem('wingmanAISettings') || '{}');
-        if (savedSettings.config && savedSettings.config.lastResponseTime) {
-            stopwatchDisplay.textContent = savedSettings.config.lastResponseTime;
-        } else {
-            stopwatchDisplay.textContent = '0.0s';
-        }
+        const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+        stopwatchDisplay.textContent = savedSettings.config?.lastResponseTime || '0.0s';
     }
 
     function handleCopy(textToCopy) {
         if (!textToCopy) return;
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            showToast("Copied to clipboard!");
-        }).catch(err => {
-            console.error('Failed to copy text: ', err);
-            showToast("Failed to copy!");
-        });
+        navigator.clipboard.writeText(textToCopy).then(() => showToast("Copied to clipboard!"))
+            .catch(err => showToast("Failed to copy!"));
     }
 
     function showToast(message) {
