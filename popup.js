@@ -14,9 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
         copyBtn: document.getElementById('copy-btn'),
         cancelBtn: document.getElementById('cancel-btn'),
         resetMatchBtn: document.getElementById('reset-match-btn'),
+        variationsBtn: document.getElementById('variations-btn'),
         // Settings View
         backToMainBtn: document.getElementById('back-to-main-btn'),
-        testConnectionBtn: document.getElementById('test-connection-btn'),
         importSettingsBtn: document.getElementById('import-settings-btn'),
         exportSettingsBtn: document.getElementById('export-settings-btn'),
         resetDefaultsBtn: document.getElementById('reset-defaults-btn'),
@@ -40,37 +40,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const responsePlaceholder = document.getElementById('response-placeholder');
     const responseLoader = document.getElementById('response-loader');
     const refinementActions = document.getElementById('refinement-actions');
-    const variationsBtn = document.getElementById('variations-btn');
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
-
-    // Interactive Controls
-    const sliders = document.querySelectorAll('input[type="range"]');
     const customInstruction = document.getElementById('custom-instruction');
     const clearCustomInstructionBtn = document.getElementById('clear-custom-instruction');
-    const applySuggestionBtn = document.getElementById('apply-suggestion-btn');
-    const suggestedActionText = document.getElementById('suggested-action-text');
-
-    // Advanced Features
+    const sliders = document.querySelectorAll('input[type="range"]');
     const historyLog = document.getElementById('history-log');
     const debugToggle = document.getElementById('debug-toggle');
     const debugOutput = document.getElementById('debug-output');
     const stopwatchDisplay = document.getElementById('stopwatch-display');
 
 
-    // --- Response Area Placeholder Logic ---
-    responseArea.addEventListener('input', () => {
-        // Hide placeholder if there's text, show it if empty
-        responsePlaceholder.style.display = responseArea.textContent.trim() ? 'none' : 'block';
-    });
     // --- State Management ---
     let activeView = 'loading';
+    let isGenerating = false;
+    let generationTimeout;
+    let history = [];
+    let stopwatchInterval;
+    let stopwatchStartTime;
+
 
     // --- View Management ---
-    /**
-     * Hides all views and shows the one with the specified ID.
-     * @param {string} viewId - The ID of the view to show ('loading', 'error', 'main', 'settings').
-     */
     function showView(viewId) {
         activeView = viewId;
         for (const id in views) {
@@ -78,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (views[viewId]) {
             views[viewId].classList.add('active');
-            // Move focus to a logical element in the new view
             if (viewId === 'settings') {
                 buttons.backToMainBtn.focus();
             } else if (viewId === 'main') {
@@ -89,204 +78,102 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Event Listener Setup ---
+    // --- Event Listeners ---
+    function setupEventListeners() {
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            const isMetaKey = e.metaKey || e.ctrlKey;
+            if (e.key === 'Enter' && !e.target.matches('textarea, [contenteditable]')) {
+                e.preventDefault();
+                buttons.generateBtn.click();
+            }
+            if (e.key === 'Escape' && isGenerating) {
+                e.preventDefault();
+                buttons.cancelBtn.click();
+            }
+            if (isMetaKey && e.key === '/') {
+                e.preventDefault();
+                debugToggle.checked = !debugToggle.checked;
+                debugToggle.dispatchEvent(new Event('change'));
+            }
+        });
 
-    // Keyboard Shortcuts
-    document.addEventListener('keydown', (e) => {
-        const isMetaKey = e.metaKey || e.ctrlKey;
+        // Navigation
+        buttons.settingsBtn.addEventListener('click', () => showView('settings'));
+        buttons.backToMainBtn.addEventListener('click', () => showView('main'));
+        buttons.retryBtn.addEventListener('click', () => {
+            showView('loading');
+            setTimeout(() => showView('main'), 1500);
+        });
 
-        if (e.key === 'Enter' && !e.target.matches('textarea, [contenteditable]')) {
-            e.preventDefault();
-            buttons.generateBtn.click();
-        }
-        if (e.key === 'Escape' && isGenerating) {
-            e.preventDefault();
-            buttons.cancelBtn.click();
-        }
-        if (isMetaKey && e.key === '/') {
-            e.preventDefault();
-            debugToggle.checked = !debugToggle.checked;
-            // Manually trigger change event to update UI
-            debugToggle.dispatchEvent(new Event('change'));
-        }
-    });
+        // Main Actions
+        buttons.generateBtn.addEventListener('click', handleGenerate);
+        buttons.copyBtn.addEventListener('click', () => handleCopy(responseArea.textContent));
+        buttons.cancelBtn.addEventListener('click', handleCancel);
 
-    // Navigation
-    buttons.settingsBtn.addEventListener('click', () => showView('settings'));
-    buttons.backToMainBtn.addEventListener('click', () => showView('main'));
-    buttons.retryBtn.addEventListener('click', () => {
-        // Simulate a retry attempt
-        showView('loading');
-        setTimeout(() => showView('main'), 1500);
-    });
+        // Settings Actions
+        document.getElementById('test-nlp-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
+        document.getElementById('test-llm-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
+        buttons.importSettingsBtn.addEventListener('click', handleImport);
+        buttons.exportSettingsBtn.addEventListener('click', handleExport);
+        buttons.resetDefaultsBtn.addEventListener('click', handleReset);
 
-    // Tab Navigation
-    Object.values(tabs).forEach(tab => {
-        tab.addEventListener('click', (e) => handleTabClick(e.currentTarget));
-    });
+        // Tab Navigation
+        Object.values(tabs).forEach(tab => {
+            tab.addEventListener('click', (e) => handleTabClick(e.currentTarget));
+        });
 
-    // Action Buttons (stubs)
-    buttons.generateBtn.addEventListener('click', handleGenerate);
-    buttons.copyBtn.addEventListener('click', handleCopy);
-    buttons.cancelBtn.addEventListener('click', handleCancel);
-
-    // Settings Buttons (stubs)
-    document.getElementById('test-nlp-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
-    document.getElementById('test-llm-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
-    buttons.importSettingsBtn.addEventListener('click', handleImport);
-    buttons.exportSettingsBtn.addEventListener('click', handleExport);
-    buttons.resetDefaultsBtn.addEventListener('click', handleReset);
-
-    // --- Interactive Controls Logic & Settings Saving ---
-
-    function updateSliderValue(slider) {
-        const valueLabel = slider.previousElementSibling.querySelector('.slider-value');
-        if (valueLabel) {
-            valueLabel.textContent = slider.value;
-        }
-        // Announce the value for screen readers
-        slider.setAttribute('aria-valuetext', slider.value);
+        // Interactive Controls
+        responseArea.addEventListener('input', () => {
+            responsePlaceholder.style.display = responseArea.textContent.trim() ? 'none' : 'block';
+        });
+        customInstruction.addEventListener('input', () => {
+            clearCustomInstructionBtn.style.display = customInstruction.value ? 'block' : 'none';
+        });
+        clearCustomInstructionBtn.addEventListener('click', () => {
+            customInstruction.value = '';
+            customInstruction.focus();
+            customInstruction.dispatchEvent(new Event('input'));
+        });
+        sliders.forEach(slider => {
+            slider.addEventListener('input', () => {
+                updateSliderValue(slider);
+                saveSettings();
+            });
+        });
+        document.getElementById('settings-form').addEventListener('change', saveSettings);
+        document.getElementById('tune-panel').addEventListener('change', saveSettings);
+        historyLog.addEventListener('click', (e) => {
+            if (e.target.classList.contains('copy-history-btn')) {
+                const textToCopy = e.target.previousElementSibling.textContent;
+                handleCopy(textToCopy);
+            }
+        });
+        debugToggle.addEventListener('change', () => {
+            debugOutput.style.display = debugToggle.checked ? 'block' : 'none';
+        });
     }
 
-    // Listen for changes on all relevant forms and controls to save settings
-    const settingsForm = document.getElementById('settings-form');
-    const tunePanel = document.getElementById('tune-panel');
-
-    settingsForm.addEventListener('change', saveSettings);
-    tunePanel.addEventListener('change', saveSettings);
-    sliders.forEach(slider => {
-        slider.addEventListener('input', () => {
-            updateSliderValue(slider);
-            saveSettings();
-        });
-    });
-
-
-    // --- Non-persisted Interactive Controls ---
-
-    // Custom Instruction Textarea
-    customInstruction.addEventListener('input', () => {
-        clearCustomInstructionBtn.style.display = customInstruction.value ? 'block' : 'none';
-    });
-
-    clearCustomInstructionBtn.addEventListener('click', () => {
-        customInstruction.value = '';
-        customInstruction.focus();
-        // Manually trigger input event to hide the button
-        customInstruction.dispatchEvent(new Event('input'));
-    });
-
-    // Analysis Panel "Apply Suggestion" Button
-    applySuggestionBtn.addEventListener('click', () => {
-        const suggestion = suggestedActionText.textContent;
-        if (suggestion) {
-            customInstruction.value = suggestion;
-            customInstruction.focus();
-            // Ensure the view is updated (e.g., clear button visibility)
-            customInstruction.dispatchEvent(new Event('input'));
-            showToast("Suggestion applied!");
-        }
-    });
-
-
-    // --- Function Stubs for Future Implementation ---
+    // --- Core Functions ---
 
     function handleTabClick(clickedTab) {
         if (!clickedTab) return;
-
-        // Deactivate all tabs and panels
         Object.values(tabs).forEach(tab => {
             tab.classList.remove('active');
             tab.setAttribute('aria-selected', 'false');
         });
-        Object.values(tabPanels).forEach(panel => {
-            panel.classList.remove('active');
-        });
-
-        // Activate the clicked tab
+        Object.values(tabPanels).forEach(panel => panel.classList.remove('active'));
         clickedTab.classList.add('active');
         clickedTab.setAttribute('aria-selected', 'true');
-
-        // Activate the corresponding panel
         const panelId = clickedTab.getAttribute('aria-controls');
-        const correspondingPanel = document.getElementById(panelId);
-        if (correspondingPanel) {
-            correspondingPanel.classList.add('active');
-        }
-        saveSettings(); // Save the new active tab state
+        document.getElementById(panelId)?.classList.add('active');
+        saveSettings();
     }
 
-    let isGenerating = false;
-    let generationTimeout;
-    let history = [];
-
-    function updateHistoryLog() {
-        historyLog.innerHTML = ''; // Clear existing list
-        if (history.length === 0) {
-            historyLog.innerHTML = '<li>No generations yet.</li>';
-            return;
-        }
-        history.forEach(item => {
-            const li = document.createElement('li');
-            const text = document.createElement('span');
-            text.className = 'history-text';
-            text.textContent = item;
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'btn btn-sm copy-history-btn';
-            copyBtn.textContent = 'Copy';
-            li.appendChild(text);
-            li.appendChild(copyBtn);
-            historyLog.appendChild(li);
-        });
-    }
-
-    // Use event delegation for history copy buttons
-    historyLog.addEventListener('click', (e) => {
-        if (e.target.classList.contains('copy-history-btn')) {
-            const textToCopy = e.target.previousElementSibling.textContent;
-            handleCopy(textToCopy);
-        }
-    });
-
-    // Debug Toggle Logic
-    debugToggle.addEventListener('change', () => {
-        debugOutput.style.display = debugToggle.checked ? 'block' : 'none';
-    });
-
-    // --- Stopwatch Logic ---
-    let stopwatchInterval;
-    let stopwatchStartTime;
-
-    function updateStopwatchDisplay() {
-        if (!stopwatchStartTime) return;
-        const elapsedTime = (Date.now() - stopwatchStartTime) / 1000;
-        stopwatchDisplay.textContent = `${elapsedTime.toFixed(1)}s`;
-    }
-
-    function getMyLocation() {
-        const settings = getSettingsFromDOM();
-        const myLocation = await getMyLocation();
-
-        const payload = {
-            matchId: "placeholder_match_id_12345",
-            scraped_data: {
-                myName: "User",
-                theirName: "Match",
-                theirProfile: "A profile scraped from the page.",
-                theirLocationString: "City, Country",
-                conversationHistory: [
-                    { role: "user", content: "Hey, how's it going?", date: "2025-08-17" },
-                    { role: "assistant", content: "Great! You?", date: "2025-08-17" },
-                ]
-            },
-            ui_settings: {
-                useEnhancedNlp: settings.config.advancedNlp,
-                myLocation: myLocation,
-                myProfile: settings.config.myProfile,
-                local_model_name: settings.config.openaiModel
-            }
-        };
-        return payload;
+    function updateSliderValue(slider) {
+        const valueLabel = slider.previousElementSibling.querySelector('.slider-value');
+        if (valueLabel) valueLabel.textContent = slider.value;
+        slider.setAttribute('aria-valuetext', slider.value);
     }
 
     async function handleGenerate() {
@@ -297,13 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
         stopwatchInterval = setInterval(updateStopwatchDisplay, 100);
         updateStopwatchDisplay();
 
-        // Construct payload (now async)
         const apiPayload = await constructApiPayload();
-        console.log("--- Wingman AI: API Payload ---");
-        console.log(JSON.stringify(apiPayload, null, 2));
-        console.log("---------------------------------");
+        console.log("--- Wingman AI: API Payload ---", JSON.stringify(apiPayload, null, 2));
 
-        // Update UI for loading state
         buttons.generateBtn.disabled = true;
         buttons.cancelBtn.style.display = 'inline-flex';
         buttons.variationsBtn.style.display = 'none';
@@ -313,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
         responsePlaceholder.style.display = 'none';
         responseArea.textContent = '';
 
-        // Simulate API call
         generationTimeout = setTimeout(() => {
             if (!isGenerating) return;
             isGenerating = false;
@@ -321,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(stopwatchInterval);
             const finalTime = ((Date.now() - stopwatchStartTime) / 1000).toFixed(1);
             stopwatchDisplay.textContent = `${finalTime}s`;
-            saveSettings(); // Persist the final time
 
             const dummyResponse = "This is a witty and engaging response generated by Wingman AI. How does this look?";
             responseArea.textContent = dummyResponse;
@@ -330,14 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (history.length > 5) history.pop();
             updateHistoryLog();
 
-            const debugData = {
-                request: apiPayload,
-                response: { text: dummyResponse },
-                latency: `${finalTime}s`
-            };
+            const debugData = { request: apiPayload, response: { text: dummyResponse }, latency: `${finalTime}s` };
             debugOutput.querySelector('code').textContent = JSON.stringify(debugData, null, 2);
 
-            // Update UI for success state
             buttons.generateBtn.disabled = false;
             buttons.cancelBtn.style.display = 'none';
             buttons.copyBtn.style.display = 'inline-flex';
@@ -346,21 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
             responseLoader.style.display = 'none';
 
             handleCopy(dummyResponse);
+            saveSettings();
         }, 2500);
-    }
-
-    function handleCopy(textToCopy) {
-        // The click event listener on the copy button passes an event object, not a string.
-        // We check if textToCopy is a string; if not, we get the text from the response area.
-        const text = (typeof textToCopy === 'string') ? textToCopy : responseArea.textContent;
-        if (!text) return;
-
-        navigator.clipboard.writeText(text).then(() => {
-            showToast("Copied to clipboard!");
-        }).catch(err => {
-            console.error('Failed to copy text: ', err);
-            showToast("Failed to copy!");
-        });
     }
 
     function handleCancel() {
@@ -370,7 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
         clearInterval(stopwatchInterval);
         stopwatchStartTime = null;
 
-        // Reset UI to default state
         buttons.generateBtn.disabled = false;
         buttons.cancelBtn.style.display = 'none';
         buttons.copyBtn.style.display = 'inline-flex';
@@ -379,8 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!responseArea.textContent) {
             responsePlaceholder.style.display = 'block';
         }
-        // Restore stopwatch display to last saved time
-        const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+        const savedSettings = JSON.parse(localStorage.getItem('wingmanAISettings') || '{}');
         if (savedSettings.config && savedSettings.config.lastResponseTime) {
             stopwatchDisplay.textContent = savedSettings.config.lastResponseTime;
         } else {
@@ -388,90 +249,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function handleCopy(textToCopy) {
+        if (!textToCopy) return;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast("Copied to clipboard!");
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            showToast("Failed to copy!");
+        });
+    }
+
     function showToast(message) {
         toastMessage.textContent = message;
         toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
+        setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    function handleTestConnection(button) {
-        const statusSpan = button.querySelector('.connection-status');
-        if (!statusSpan) return;
-
-        statusSpan.textContent = 'Testing...';
-        statusSpan.style.color = 'var(--secondary-text)';
-
-        // Simulate API call
-        setTimeout(() => {
-            const isSuccess = Math.random() < 0.75;
-            if (isSuccess) {
-                statusSpan.textContent = '✓';
-                statusSpan.style.color = 'var(--success-color)';
-            } else {
-                statusSpan.textContent = '✗';
-                statusSpan.style.color = 'var(--danger-color)';
-            }
-            setTimeout(() => {
-                statusSpan.textContent = '';
-            }, 2000);
-        }, 1000);
+    function updateHistoryLog() {
+        historyLog.innerHTML = history.length ? '' : '<li>No generations yet.</li>';
+        history.forEach(item => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="history-text"></span><button class="btn btn-sm copy-history-btn">Copy</button>`;
+            li.querySelector('.history-text').textContent = item;
+            historyLog.appendChild(li);
+        });
     }
 
-    function handleImport() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json,application/json';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const importedSettings = JSON.parse(event.target.result);
-                    applySettingsToDOM(importedSettings);
-                    saveSettings(); // Persist the newly imported settings
-                    showToast("Settings imported successfully!");
-                } catch (err) {
-                    console.error("Error parsing imported settings file:", err);
-                    showToast("Error: Invalid settings file.");
-                }
-            };
-            reader.readAsText(file);
-        };
-        input.click();
-    }
-
-    function handleExport() {
-        const settingsString = JSON.stringify(getSettingsFromDOM(), null, 2);
-        const blob = new Blob([settingsString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `wingman-ai-settings-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast("Settings exported.");
-    }
-
-    function handleReset() {
-        if (confirm("Are you sure you want to reset all settings to their defaults? This cannot be undone.")) {
-            // Clear from localStorage
-            localStorage.removeItem(SETTINGS_KEY);
-            // Reload the popup to apply default state.
-            // This is a simple and effective way to reset the UI to its initial state.
-            location.reload();
-        }
-    }
-
-    // --- Settings & State Persistence ---
+    // --- Settings & Persistence ---
     const SETTINGS_KEY = 'wingmanAISettings';
 
-    // Helper to get all form values into a settings object
     function getSettingsFromDOM() {
         return {
             activeTab: document.querySelector('.tab-btn.active')?.id || 'tab-tune',
@@ -496,24 +302,18 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Helper to apply a settings object to the DOM
     function applySettingsToDOM(settings) {
         if (!settings) return;
-
-        // Apply Tune Panel Settings
         if (settings.tune) {
             const tune = settings.tune;
             document.getElementById('current-goal').value = tune.currentGoal || 'Build Rapport';
             document.getElementById('flirt-level').value = tune.flirtLevel || 50;
             document.getElementById('length-level').value = tune.lengthLevel || 50;
-            document.getElementById('linguistic-style').value = tune.linguisticStyle || '';
+            document.getElementById('linguistic-style').value = tune.linguisticStyle || 'Witty';
             document.getElementById('creativity').value = tune.creativity || 0.7;
             document.getElementById('focus').value = tune.focus || 0.9;
-            // Update slider value displays after setting their values
             sliders.forEach(updateSliderValue);
         }
-
-        // Apply Config Settings
         if (settings.config) {
             const config = settings.config;
             document.getElementById('nlp-url').value = config.nlpUrl || '';
@@ -525,8 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('my-location').value = config.myLocation || 'auto';
             stopwatchDisplay.textContent = config.lastResponseTime || '0.0s';
         }
-
-        // Apply Active Tab
         if (settings.activeTab) {
             const tabToActivate = document.getElementById(settings.activeTab);
             if(tabToActivate) handleTabClick(tabToActivate);
@@ -534,42 +332,112 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function saveSettings() {
-        const currentSettings = getSettingsFromDOM();
         try {
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(currentSettings));
-        } catch (e) {
-            console.error("Error saving settings:", e);
-        }
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(getSettingsFromDOM()));
+        } catch (e) { console.error("Error saving settings:", e); }
     }
 
     function loadSettings() {
         try {
             const savedSettings = localStorage.getItem(SETTINGS_KEY);
-            if (savedSettings) {
-                applySettingsToDOM(JSON.parse(savedSettings));
-            } else {
-                // If no saved settings, ensure sliders display their default values
-                sliders.forEach(updateSliderValue);
+            if (savedSettings) applySettingsToDOM(JSON.parse(savedSettings));
+            else sliders.forEach(updateSliderValue);
+        } catch (e) { console.error("Error loading settings:", e); }
+    }
+
+    function getMyLocation() {
+        return new Promise((resolve) => {
+            const locationSetting = document.getElementById('my-location').value;
+            if (locationSetting !== 'auto') {
+                resolve(locationSetting);
+                return;
             }
-        } catch (e) {
-            console.error("Error loading settings:", e);
+            if (!navigator.geolocation) {
+                resolve("Geolocation not supported");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (position) => resolve(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`),
+                () => resolve("Permission denied"),
+                { timeout: 5000 }
+            );
+        });
+    }
+
+    async function constructApiPayload() {
+        const settings = getSettingsFromDOM();
+        const myLocation = await getMyLocation();
+        return {
+            matchId: "placeholder_match_id_12345",
+            scraped_data: { /* ... placeholder ... */ },
+            ui_settings: {
+                useEnhancedNlp: settings.config.advancedNlp,
+                myLocation: myLocation,
+                myProfile: settings.config.myProfile,
+                local_model_name: settings.config.openaiModel
+            }
+        };
+    }
+
+    function handleTestConnection(button) {
+        const statusSpan = button.querySelector('.connection-status');
+        if (!statusSpan) return;
+        statusSpan.textContent = '...';
+        setTimeout(() => {
+            const isSuccess = Math.random() < 0.75;
+            statusSpan.textContent = isSuccess ? '✓' : '✗';
+            statusSpan.style.color = isSuccess ? 'var(--success-color)' : 'var(--danger-color)';
+            setTimeout(() => statusSpan.textContent = '', 2000);
+        }, 1000);
+    }
+
+    function handleImport() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = event => {
+                try {
+                    applySettingsToDOM(JSON.parse(event.target.result));
+                    saveSettings();
+                    showToast("Settings imported!");
+                } catch (err) { showToast("Error: Invalid settings file."); }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+
+    function handleExport() {
+        const settingsString = JSON.stringify(getSettingsFromDOM(), null, 2);
+        const blob = new Blob([settingsString], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `wingman-ai-settings-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        showToast("Settings exported.");
+    }
+
+    function handleReset() {
+        if (confirm("Are you sure you want to reset all settings?")) {
+            localStorage.removeItem(SETTINGS_KEY);
+            location.reload();
         }
     }
 
-
     // --- Initialization ---
     function init() {
-        loadSettings(); // Load settings from localStorage first
-        // Start with the loading view
+        loadSettings();
+        setupEventListeners();
         showView('loading');
-
-        // Simulate initial loading process (e.g., scraping the page)
-        setTimeout(() => {
-            // After loading, switch to the main view
-            showView('main');
-        }, 1500); // 1.5 second simulated load time
+        setTimeout(() => showView('main'), 1000);
     }
 
-    // Run the app
     init();
 });
