@@ -11,9 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         generateBtn: document.getElementById('generate-btn'),
         copyCancelBtn: document.getElementById('copy-cancel-btn'),
         backToMainBtn: document.getElementById('back-to-main-btn'),
-        importSettingsBtn: document.getElementById('import-settings-btn'),
-        exportSettingsBtn: document.getElementById('export-settings-btn'),
-        resetDefaultsBtn: document.getElementById('reset-defaults-btn'),
         retryBtn: document.getElementById('retry-btn'),
     };
     const tabs = {
@@ -54,9 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.getElementById('test-nlp-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
         document.getElementById('test-llm-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
-        buttons.importSettingsBtn.addEventListener('click', handleImport);
-        buttons.exportSettingsBtn.addEventListener('click', handleExport);
-        buttons.resetDefaultsBtn.addEventListener('click', handleReset);
         Object.values(tabs).forEach(tab => {
             tab.addEventListener('click', (e) => handleTabClick(e.currentTarget));
         });
