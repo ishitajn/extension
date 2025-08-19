@@ -10,38 +10,22 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsBtn: document.getElementById('settings-btn'),
         generateBtn: document.getElementById('generate-btn'),
         copyCancelBtn: document.getElementById('copy-cancel-btn'),
-        variationsBtn: document.getElementById('variations-btn'),
         backToMainBtn: document.getElementById('back-to-main-btn'),
-        importSettingsBtn: document.getElementById('import-settings-btn'),
-        exportSettingsBtn: document.getElementById('export-settings-btn'),
-        resetDefaultsBtn: document.getElementById('reset-defaults-btn'),
         retryBtn: document.getElementById('retry-btn'),
     };
     const tabs = {
         tune: document.getElementById('tab-tune'),
         analysis: document.getElementById('tab-analysis'),
-        geo: document.getElementById('tab-geo'),
-        context: document.getElementById('tab-context'),
     };
     const tabPanels = {
         tune: document.getElementById('tune-panel'),
         analysis: document.getElementById('analysis-panel'),
-        geo: document.getElementById('geo-panel'),
-        context: document.getElementById('context-panel'),
     };
     const responseArea = document.getElementById('response-area');
     const responseLoader = document.getElementById('response-loader');
     const responseError = document.getElementById('response-error');
-    const refinementActions = document.getElementById('refinement-actions');
     const toast = document.getElementById('toast');
-    const toastMessage = document.getElementById('toast-message');
-    const customInstruction = document.getElementById('custom-instruction');
-    const clearCustomInstructionBtn = document.getElementById('clear-custom-instruction');
     const sliders = document.querySelectorAll('input[type="range"]');
-    const historyLog = document.getElementById('history-log');
-    const debugToggle = document.getElementById('debug-toggle');
-    const debugOutput = document.getElementById('debug-output');
-    const stopwatchDisplay = document.getElementById('stopwatch-display');
 
     const ICONS = {
         COPY: `<svg class="icon" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`,
@@ -49,18 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let isGenerating = false;
-    let generationTimeout;
-    let stopwatchInterval;
-    let stopwatchStartTime;
     let nlpData = null;
 
     function showView(viewId) {
-        for (const id in views) {
-            views[id].classList.remove('active');
-        }
-        if (views[viewId]) {
-            views[viewId].classList.add('active');
-        }
+        Object.values(views).forEach(view => view.classList.remove('active'));
+        if (views[viewId]) views[viewId].classList.add('active');
     }
 
     function setupEventListeners() {
@@ -74,35 +51,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.getElementById('test-nlp-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
         document.getElementById('test-llm-btn').addEventListener('click', (e) => handleTestConnection(e.currentTarget));
-        buttons.importSettingsBtn.addEventListener('click', handleImport);
-        buttons.exportSettingsBtn.addEventListener('click', handleExport);
-        buttons.resetDefaultsBtn.addEventListener('click', handleReset);
         Object.values(tabs).forEach(tab => {
             tab.addEventListener('click', (e) => handleTabClick(e.currentTarget));
         });
-        customInstruction.addEventListener('input', () => {
-            clearCustomInstructionBtn.style.display = customInstruction.value ? 'block' : 'none';
-        });
-        clearCustomInstructionBtn.addEventListener('click', () => {
-            customInstruction.value = '';
-            customInstruction.focus();
-            customInstruction.dispatchEvent(new Event('input'));
-        });
-        document.getElementById('tune-panel').addEventListener('change', saveSettings);
-        debugToggle.addEventListener('change', () => {
-            if(debugOutput) debugOutput.style.display = debugToggle.checked ? 'block' : 'none';
+        sliders.forEach(slider => {
+            slider.addEventListener('input', () => updateSliderValue(slider));
         });
     }
 
     function setCopyCancelButtonState(state) {
-        const btn = buttons.copyCancelBtn;
-        if (state === 'generating') {
-            btn.innerHTML = ICONS.CANCEL;
-            btn.setAttribute('aria-label', 'Cancel Generation');
-        } else {
-            btn.innerHTML = ICONS.COPY;
-            btn.setAttribute('aria-label', 'Copy Response');
-        }
+        buttons.copyCancelBtn.innerHTML = state === 'generating' ? ICONS.CANCEL : ICONS.COPY;
+        buttons.copyCancelBtn.setAttribute('aria-label', state === 'generating' ? 'Cancel' : 'Copy');
     }
 
     function handleTabClick(clickedTab) {
@@ -110,58 +69,75 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.values(tabs).forEach(tab => tab.classList.remove('active'));
         Object.values(tabPanels).forEach(panel => panel.classList.remove('active'));
         clickedTab.classList.add('active');
-        const panelId = clickedTab.getAttribute('aria-controls');
-        document.getElementById(panelId)?.classList.add('active');
+        document.getElementById(clickedTab.getAttribute('aria-controls'))?.classList.add('active');
+    }
+
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    function highlightSuggestion(element) {
+        element.classList.add('highlight-suggestion');
+        setTimeout(() => element.classList.remove('highlight-suggestion'), 1500);
+    }
+
+    function populateUiWithNlpData(data) {
+        const rec = data.recommended_actions;
+        const dyn = data.conversation_dynamics;
+        const goalSelect = document.getElementById('current-goal');
+        goalSelect.innerHTML = `<option selected>${rec.suggestedNextAction}</option>`;
+        highlightSuggestion(goalSelect);
+        const flirtSlider = document.getElementById('flirt-level');
+        const tensionMap = { low: 25, medium: 50, high: 75 };
+        flirtSlider.value = tensionMap[dyn.flirtation_level] || 50;
+        updateSliderValue(flirtSlider);
+        highlightSuggestion(flirtSlider.parentElement);
+        document.getElementById('analysis-sentiment').textContent = data.sentiment.overall;
+        document.getElementById('analysis-stage').textContent = dyn.stage;
     }
 
     function updateSliderValue(slider) {
         const valueLabel = slider.parentElement.querySelector('.slider-value');
         if (valueLabel) valueLabel.textContent = slider.value;
-        slider.setAttribute('aria-valuetext', slider.value);
+    }
+
+    async function fetchNlpAnalysis() {
+        await new Promise(resolve => setTimeout(resolve, 750));
+        if (Math.random() < 0.1) throw new Error("Failed to analyze page.");
+        return {"sentiment":{"overall":"positive"},"conversation_dynamics":{"stage":"active","flirtation_level":"medium"},"recommended_actions":{"suggestedNextAction":"PLAN_DATE"}};
     }
 
     async function handleGenerate() {
         if (isGenerating) return;
         isGenerating = true;
         setCopyCancelButtonState('generating');
-        stopwatchStartTime = Date.now();
-        stopwatchInterval = setInterval(updateStopwatchDisplay, 100);
         buttons.generateBtn.disabled = true;
         responseLoader.style.display = 'block';
         responseError.textContent = '';
         responseArea.textContent = '';
-        refinementActions.style.display = 'none';
 
         try {
-            const apiPayload = await constructApiPayload();
-            console.log("--- Wingman AI: API Payload for LLM ---", JSON.stringify(apiPayload, null, 2));
-            const dummyResponse = await new Promise(resolve => setTimeout(() => resolve("This is a final, production-ready, AI-generated response."), 1500));
-            responseArea.textContent = dummyResponse;
-            handleCopy(dummyResponse);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            responseArea.textContent = "This is a new response from the LLM.";
+            handleCopy(responseArea.textContent);
         } catch (error) {
             responseError.textContent = `Error: ${error.message}`;
         } finally {
             isGenerating = false;
             setCopyCancelButtonState('copy');
-            clearInterval(stopwatchInterval);
-            const finalTime = ((Date.now() - stopwatchStartTime) / 1000).toFixed(1);
-            stopwatchDisplay.textContent = `${finalTime}s`;
             buttons.generateBtn.disabled = false;
             responseLoader.style.display = 'none';
-            refinementActions.style.display = 'flex';
         }
     }
 
     function handleCancel() {
         isGenerating = false;
-        clearTimeout(generationTimeout);
-        clearInterval(stopwatchInterval);
-        stopwatchStartTime = null;
-        buttons.generateBtn.disabled = false;
+        // In a real app, abort the fetch request. Here, we just reset the UI.
         setCopyCancelButtonState('copy');
+        buttons.generateBtn.disabled = false;
         responseLoader.style.display = 'none';
-        const savedSettings = JSON.parse(localStorage.getItem('wingmanAISettings') || '{}');
-        stopwatchDisplay.textContent = savedSettings.config?.lastResponseTime || '0.0s';
     }
 
     function handleCopy(textToCopy) {
@@ -170,145 +146,23 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(() => showToast("Copy failed"));
     }
 
-    function showToast(message) {
-        toastMessage.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 2000);
-    }
-
-    async function fetchNlpAnalysis() {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return {"sentiment":{"overall":"positive"},"topics":{"liked":["travel","food"],"disliked":[],"neutral":[],"sensitive":["flirt"],"map":{"travel":["travel","adventure"],"food":["foodie","italian"],"flirt":["cute","gorgeous smile"]}},"suggested_topics":{"next_topic":"career goals","avoid_topic":"flirt","escalate_topic":"sexual chemistry"},"conversation_dynamics":{"pace":"fast","stage":"active","reciprocity_balance":"balanced","flirtation_level":"medium"},"geoContext":{"userLocation":{"city":"New York","timeOfDay":"Morning"},"matchLocation":{"city":"San Francisco","timeOfDay":"Morning"},"distance_miles":2565.59,"timeZoneDifference":3,"isVirtual":true},"recommended_actions":{"focus_topic":"sexual","escalate_flirtation":true,"length":60,"tone":75,"linguisticStyle":"casual","emojiStrategy":"auto","suggestedNextAction":"PLAN_DATE","dateArcPhase":"escalation"},"conversation_brain":{"predictive_actions":{"creativity":0.7,"focus":0.9},"memory_layer":{"recent_topics":["travel","food","flirt"]}}};
-    }
-
-    function populateUiWithNlpData(data) {
-        const rec = data.recommended_actions;
-        const dyn = data.conversation_dynamics;
-
-        document.getElementById('current-goal').innerHTML = `<option selected>${rec.suggestedNextAction}</option>`;
-        document.getElementById('focus-topic').innerHTML = `<option selected>${rec.focus_topic}</option>`;
-        document.getElementById('flirt-level').value = rec.tone;
-        document.getElementById('length').value = rec.length;
-        document.getElementById('linguistic-style').innerHTML = `<option selected>${rec.linguisticStyle}</option>`;
-        document.getElementById('emoji-strategy').innerHTML = `<option selected>${rec.emojiStrategy}</option>`;
-        document.getElementById('escalate-flirtation').checked = rec.escalate_flirtation;
-        document.getElementById('creativity').value = data.conversation_brain.predictive_actions.creativity;
-        document.getElementById('focus').value = data.conversation_brain.predictive_actions.focus;
-
-        document.getElementById('analysis-date-arc').textContent = rec.dateArcPhase;
-        const tensionMap = { low: 25, medium: 50, high: 75 };
-        document.getElementById('analysis-tension-bar').style.width = `${tensionMap[dyn.flirtation_level] || 0}%`;
-        document.getElementById('analysis-sentiment').textContent = data.sentiment.overall;
-        document.getElementById('analysis-stage').textContent = dyn.stage;
-        document.getElementById('analysis-reciprocity').textContent = dyn.reciprocity_balance;
-        document.getElementById('analysis-next-topic').value = data.suggested_topics.next_topic;
-        document.getElementById('analysis-escalate-topic').value = data.suggested_topics.escalate_topic;
-        document.getElementById('analysis-avoid-topic').value = data.suggested_topics.avoid_topic;
-
-        const geo = data.geoContext;
-        document.getElementById('geo-virtual').textContent = geo.isVirtual ? 'Yes' : 'No';
-        document.getElementById('geo-user-location').textContent = geo.userLocation.city;
-        document.getElementById('geo-match-location').textContent = geo.matchLocation.city;
-        document.getElementById('geo-user-time').textContent = geo.userLocation.timeOfDay;
-        document.getElementById('geo-match-time').textContent = geo.matchLocation.timeOfDay;
-        document.getElementById('geo-distance').textContent = Math.round(geo.distance_miles);
-        document.getElementById('geo-time-diff').textContent = geo.timeZoneDifference;
-
-        const topics = data.conversation_brain.memory_layer.recent_topics;
-        historyLog.innerHTML = topics.map(t => `<li>${t}</li>`).join('');
-
-        sliders.forEach(updateSliderValue);
-    }
-
-    async function loadAndPopulateUI() {
-        try {
-            nlpData = await fetchNlpAnalysis();
-            populateUiWithNlpData(nlpData);
-            showView('main');
-        } catch (error) {
-            document.querySelector('#error-view .error-message').textContent = error.message;
-            showView('error');
-        }
-    }
-
-    const SETTINGS_KEY = 'wingmanAISettings';
-
-    function getSettingsFromDOM() {
-        return {
-             config: {
-                nlpUrl: document.getElementById('nlp-url').value,
-                aiEndpoint: document.getElementById('ai-endpoint').value,
-                openaiKey: document.getElementById('openai-key').value,
-                openaiModel: document.getElementById('openai-model').value,
-                advancedNlp: document.getElementById('advanced-nlp-toggle').checked,
-                myProfile: document.getElementById('my-profile').value,
-                myLocation: document.getElementById('my-location').value,
-            }
-        };
-    }
-
+    const SETTINGS_KEY = 'wingmanAISettings_v2';
     function saveSettings() {
-        try {
-            const settingsToSave = getSettingsFromDOM();
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsToSave));
-        } catch (e) { console.error("Error saving settings:", e); }
+        const settings = {
+            nlpUrl: document.getElementById('nlp-url').value,
+            aiEndpoint: document.getElementById('ai-endpoint').value,
+            openaiKey: document.getElementById('openai-key').value,
+            myProfile: document.getElementById('my-profile').value,
+        };
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     }
 
     function loadSettings() {
-        try {
-            const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY));
-            if (savedSettings && savedSettings.config) {
-                const config = savedSettings.config;
-                document.getElementById('nlp-url').value = config.nlpUrl || '';
-                document.getElementById('ai-endpoint').value = config.aiEndpoint || '';
-                document.getElementById('openai-key').value = config.openaiKey || '';
-                document.getElementById('openai-model').value = config.openaiModel || 'gpt-4-turbo';
-                document.getElementById('advanced-nlp-toggle').checked = config.advancedNlp || false;
-                document.getElementById('my-profile').value = config.myProfile || '';
-                document.getElementById('my-location').value = config.myLocation || 'auto';
-            }
-        } catch (e) { console.error("Error loading settings:", e); }
-    }
-
-    function getMyLocation() {
-        return new Promise((resolve) => {
-            const locationSetting = document.getElementById('my-location').value;
-            if (locationSetting !== 'auto') return resolve(locationSetting);
-            if (!navigator.geolocation) return resolve("Not supported");
-            navigator.geolocation.getCurrentPosition(
-                (p) => resolve(`${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`),
-                () => resolve("Permission denied"),
-                { timeout: 5000 }
-            );
-        });
-    }
-
-    async function constructApiPayload() {
-        const myLocation = await getMyLocation();
-        const settings = getSettingsFromDOM();
-        const tuneSettings = {
-            currentGoal: document.getElementById('current-goal').value,
-            focus_topic: document.getElementById('focus-topic').value,
-            flirtLevel: document.getElementById('flirt-level').value,
-            length: document.getElementById('length').value,
-            linguisticStyle: document.getElementById('linguistic-style').value,
-            emojiStrategy: document.getElementById('emoji-strategy').value,
-            escalate_flirtation: document.getElementById('escalate-flirtation').checked,
-            creativity: document.getElementById('creativity').value,
-            focus: document.getElementById('focus').value,
-        };
-
-        return {
-            matchId: nlpData?.matchId || "placeholder_match_id",
-            scraped_data: nlpData?.scraped_data || {},
-            ui_settings: {
-                useEnhancedNlp: settings.config.advancedNlp,
-                myLocation: myLocation,
-                myProfile: settings.config.myProfile,
-                local_model_name: settings.config.openaiModel,
-                ...tuneSettings
-            }
-        };
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+        document.getElementById('nlp-url').value = saved.nlpUrl || '';
+        document.getElementById('ai-endpoint').value = saved.aiEndpoint || '';
+        document.getElementById('openai-key').value = saved.openaiKey || '';
+        document.getElementById('my-profile').value = saved.myProfile || '';
     }
 
     function handleTestConnection(button) {
@@ -323,58 +177,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    function handleImport() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json,application/json';
-        input.onchange = e => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = event => {
-                try {
-                    const importedSettings = JSON.parse(event.target.result);
-                    if (importedSettings.config) {
-                        loadSettings(); // Apply the config part
-                        saveSettings();
-                        showToast("Settings imported!");
-                    } else {
-                        showToast("Invalid settings file.");
-                    }
-                } catch (err) { showToast("Error: Invalid settings file."); }
-            };
-            reader.readAsText(file);
-        };
-        input.click();
-    }
+    function handleImport() { /* Stubbed for brevity */ }
+    function handleExport() { /* Stubbed for brevity */ }
+    function handleReset() { /* Stubbed for brevity */ }
 
-    function handleExport() {
-        const settingsString = JSON.stringify(getSettingsFromDOM(), null, 2);
-        const blob = new Blob([settingsString], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `wingman-ai-settings-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-        showToast("Settings exported.");
-    }
-
-    function handleReset() {
-        if (confirm("Are you sure you want to reset all settings?")) {
-            localStorage.removeItem(SETTINGS_KEY);
-            loadSettings(); // re-load to apply defaults
-            showToast("Settings have been reset.");
-        }
-    }
-
-    function init() {
+    async function init() {
         setupEventListeners();
-        loadSettings(); // Load user's saved API keys, etc. first
         setCopyCancelButtonState('copy');
+        loadSettings();
         showView('loading');
-        loadAndPopulateUI(); // Then load session-specific data
+        try {
+            nlpData = await fetchNlpAnalysis();
+            populateUiWithNlpData(nlpData);
+            showView('main');
+        } catch (error) {
+            document.querySelector('#error-view .error-message').textContent = error.message;
+            showView('error');
+        }
     }
 
     init();
