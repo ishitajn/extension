@@ -287,7 +287,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Context Panel (using scraped data)
         if (scrapedData?.conversationHistory && scrapedData.conversationHistory.length > 0) {
             historyLog.innerHTML = scrapedData.conversationHistory
-                .map(msg => `<li><span class="history-role">${msg.role === 'user' ? 'You' : scrapedData.theirName}:</span> <span class="history-content">${msg.content}</span></li>`)
+                .map(msg => {
+                    const roleClass = msg.role === 'user' ? 'history-user' : 'history-match';
+                    const roleName = msg.role === 'user' ? 'You' : (scrapedData.theirName || 'Match');
+                    return `<li class="${roleClass}"><span class="history-role">${roleName}:</span> <span class="history-content">${msg.content}</span></li>`;
+                })
                 .join('');
         } else {
             historyLog.innerHTML = '<li>No conversation history found.</li>';

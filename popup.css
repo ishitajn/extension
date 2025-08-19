@@ -56,6 +56,7 @@ body {
     align-items: center;
     text-align: center;
     padding: 20px;
+    gap: 16px; /* Add consistent spacing between elements */
 }
 
 .view-header {
@@ -214,37 +215,43 @@ legend {
     text-transform: uppercase;
 }
 
-.form-group, .analysis-group, .context-group, .debug-toggle {
-    display: flex;
+/* --- Grid-based Form Layout --- */
+.form-group, .analysis-group {
+    display: grid;
+    grid-template-columns: 130px 1fr; /* Fixed label column, flexible control column */
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 14px;
 }
-.form-group label, .analysis-group > label, .context-group > label, .debug-toggle > label:last-of-type {
+
+.form-group label,
+.analysis-group > label {
     font-size: 13px;
     color: var(--secondary-text);
-    flex-shrink: 0;
-    flex-basis: 140px;
     text-align: left;
+    white-space: nowrap;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea,
 .analysis-group > div,
-.analysis-group > p,
-.context-group > div {
-    flex-grow: 1;
-    min-width: 0; /* Prevents overflow in flex containers */
+.analysis-group > p {
+    min-width: 0; /* Prevents overflow in grid containers */
+}
+
+/* For items that should span both columns */
+.form-group.full-width,
+.analysis-group.full-width {
+    grid-template-columns: 1fr;
 }
 
 /* --- Custom Toggle Switch --- */
 .switch {
     position: relative;
     display: inline-block;
-    width: 44px;
-    height: 24px;
+    width: 38px; /* Reduced width */
+    height: 22px; /* Reduced height */
 }
 .switch input {
     opacity: 0;
@@ -260,16 +267,16 @@ legend {
     bottom: 0;
     background-color: var(--header-input-bg);
     transition: var(--transition-fast);
-    border-radius: 24px;
+    border-radius: 22px; /* Adjusted for new height */
     border: 1px solid var(--border-color);
 }
 .slider-toggle:before {
     position: absolute;
     content: "";
-    height: 16px;
+    height: 16px; /* Slightly smaller circle */
     width: 16px;
-    left: 3px;
-    bottom: 3px;
+    left: 2px;   /* Adjusted position */
+    bottom: 2px; /* Adjusted position */
     background-color: var(--secondary-text);
     transition: var(--transition-fast);
     border-radius: 50%;
@@ -279,13 +286,22 @@ input:checked + .slider-toggle {
     border-color: var(--accent);
 }
 input:checked + .slider-toggle:before {
-    transform: translateX(20px);
+    transform: translateX(16px); /* Adjusted for new width */
     background-color: var(--primary-bg);
 }
+/* No special styling needed anymore for the toggle group, it will follow the standard form-group grid */
 .form-group-toggle {
+   /* display: flex; was here */
+   /* justify-content: space-between; was here */
+   /* align-items: center; was here */
+}
+
+.context-group, .debug-toggle {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
 }
 
 /* --- Custom Sliders --- */
@@ -501,9 +517,10 @@ input[type="range"]:hover::-moz-range-thumb { background: var(--accent); }
     position: relative;
     display: inline-flex;
     align-items: center;
+    gap: 6px; /* Adds space between the label text, value, and icon */
 }
 .tooltip .info-icon {
-    margin-left: 6px;
+    /* margin-left is no longer needed because of the 'gap' property on the parent .tooltip */
     font-style: normal;
     font-weight: bold;
     color: var(--secondary-text);
@@ -544,16 +561,16 @@ input[type="range"]:hover::-moz-range-thumb { background: var(--accent); }
 }
 
 /* Analysis Panel */
-.analysis-group {
-    margin-bottom: 16px;
+/* The .analysis-group now uses the same grid as .form-group */
+.analysis-group > label {
+    /* This was a block element before, now it's a grid item. */
+    /* We reset these properties to align with the main label style. */
+    text-transform: none;
+    margin-bottom: 0;
+    display: inline; /* Or let the grid handle it */
 }
-.analysis-group label {
-    font-size: 12px;
-    text-transform: uppercase;
-    color: var(--secondary-text);
-    margin-bottom: 8px;
-    display: block;
-}
+
+/* #error-view .btn { margin-top: 16px; } is no longer needed due to gap */
 .stepper {
     display: flex;
     align-items: center;
@@ -635,7 +652,7 @@ input[type="range"]:hover::-moz-range-thumb { background: var(--accent); }
 /* Error Message */
 .error-title {
     color: var(--danger-color);
-    margin-bottom: 8px;
+    /* margin-bottom is no longer needed due to gap */
 }
 
 /* Toast Notification */
@@ -717,17 +734,23 @@ details[open] > summary::before {
 #history-log li:last-child {
     border-bottom: none;
 }
-#history-log .history-text {
-    flex-grow: 1;
-    margin-right: 8px;
-    color: var(--secondary-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: default;
-}
-#history-log .copy-history-btn {
+#history-log .history-role {
+    font-weight: bold;
     flex-shrink: 0;
+    margin-right: 8px;
+}
+
+#history-log .history-user .history-role {
+    color: var(--accent);
+}
+
+#history-log .history-match .history-role {
+    color: var(--secondary-text);
+}
+
+#history-log .history-content {
+    white-space: normal;
+    word-break: break-word;
 }
 
 /* --- V2 Layout Styles (Settings) --- */
