@@ -7,20 +7,17 @@
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-
-    <!-- Main Wrapper -->
     <div class="app-wrapper">
-
         <!-- Loading View -->
         <div id="loading-view" class="view active">
             <div class="spinner"></div>
-            <p>Reading page<span class="dots">...</span></p>
+            <p>Reading page...</p>
         </div>
 
         <!-- Error View -->
         <div id="error-view" class="view">
             <h2 class="error-title">Error</h2>
-            <p class="error-message">Something went wrong. Please try again.</p>
+            <p class="error-message">Something went wrong.</p>
             <button id="retry-btn" class="btn btn-primary">Retry</button>
         </div>
 
@@ -30,70 +27,38 @@
                 <button id="back-to-main-btn" class="icon-btn" aria-label="Back to Main View">
                     <svg class="icon" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
                 </button>
-                <h2>Global Configuration</h2>
+                <h2>Configuration</h2>
             </header>
             <div class="view-content">
                 <form id="settings-form">
                     <fieldset>
                         <legend>Connection Details</legend>
-
                         <div class="sub-fieldset">
-                            <h4 class="sub-legend">NLP</h4>
+                            <h4 class="sub-legend">NLP Service</h4>
                             <div class="form-group">
-                                <label for="nlp-url">NLP Service URL</label>
-                                <input type="url" id="nlp-url" name="nlp-url" placeholder="https://api.example.com/nlp">
+                                <label for="nlp-url">Service URL</label>
+                                <input type="url" id="nlp-url" name="nlp-url">
                             </div>
-                            <div class="form-group form-group-toggle">
-                                <label for="advanced-nlp-toggle">Enable Advanced NLP Analysis</label>
-                                <label class="switch">
-                                    <input type="checkbox" id="advanced-nlp-toggle" name="advanced-nlp-toggle">
-                                    <span class="slider-toggle round"></span>
-                                </label>
-                            </div>
-                            <button id="test-nlp-btn" type="button" class="btn btn-sm">Test NLP <span class="connection-status"></span></button>
+                            <button id="test-nlp-btn" type="button" class="btn btn-sm">Test <span class="connection-status"></span></button>
                         </div>
-
                         <div class="sub-fieldset">
-                            <h4 class="sub-legend">LLM</h4>
+                            <h4 class="sub-legend">LLM Service</h4>
                             <div class="form-group">
                                 <label for="ai-endpoint">AI Endpoint</label>
-                                <input type="url" id="ai-endpoint" name="ai-endpoint" placeholder="https://api.openai.com/v1">
+                                <input type="url" id="ai-endpoint" name="ai-endpoint">
                             </div>
                              <div class="form-group">
                                 <label for="openai-key">API Key</label>
-                                <input type="password" id="openai-key" name="openai-key" placeholder="sk-...">
+                                <input type="password" id="openai-key" name="openai-key">
                             </div>
-                            <div class="form-group">
-                                <label for="openai-model">Model Name</label>
-                                <input type="text" id="openai-model" name="openai-model" placeholder="gpt-4-turbo">
-                            </div>
-                            <button id="test-llm-btn" type="button" class="btn btn-sm">Test LLM <span class="connection-status"></span></button>
+                            <button id="test-llm-btn" type="button" class="btn btn-sm">Test <span class="connection-status"></span></button>
                         </div>
                     </fieldset>
-
                     <fieldset>
                         <legend>Global Defaults</legend>
                         <div class="form-group">
-                            <label for="my-location">My Location</label>
-                            <select id="my-location" name="my-location">
-                                <option value="auto">Auto-detect</option>
-                                <option value="New York, NY">New York, NY</option>
-                                <option value="London, UK">London, UK</option>
-                                <option value="Tokyo, JP">Tokyo, JP</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
                             <label for="my-profile">My Profile</label>
-                            <textarea id="my-profile" name="my-profile" rows="3" placeholder="Describe yourself, your interests, and your communication style..."></textarea>
-                        </div>
-                    </fieldset>
-
-                    <fieldset>
-                        <legend>Data Management</legend>
-                        <div class="form-group data-buttons">
-                            <button id="import-settings-btn" type="button" class="btn">Import</button>
-                            <button id="export-settings-btn" type="button" class="btn">Export</button>
-                            <button id="reset-defaults-btn" type="button" class="btn btn-danger">Reset All</button>
+                            <textarea id="my-profile" name="my-profile" rows="3"></textarea>
                         </div>
                     </fieldset>
                 </form>
@@ -108,223 +73,51 @@
                     <h1>Wingman AI</h1>
                 </div>
                 <div class="header-actions">
-                    <button id="reset-match-btn" class="icon-btn" aria-label="Reset Match Preferences">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                    </button>
                     <button id="settings-btn" class="icon-btn" aria-label="Settings">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61-.25-1.17-.59-1.69-.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12-.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69-.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
                     </button>
                 </div>
             </header>
-
             <main class="app-content">
                 <section class="card response-card">
                     <div id="response-area" aria-label="Generated Response" aria-live="polite" role="log" aria-readonly="true"></div>
                     <div id="response-loader" class="loader-dots">···</div>
-                    <div id="response-error" class="inline-error"></div>
-
-                    <div id="refinement-actions" class="refinement-actions">
-                        <button class="btn btn-sm">Make it Funnier</button>
-                        <button class="btn btn-sm">Be More Direct</button>
-                        <button class="btn btn-sm">Make it Shorter</button>
-                    </div>
+                    <p id="response-error" class="inline-error"></p>
                 </section>
-
-                <section class="card custom-instruction-card">
-                     <textarea id="custom-instruction" placeholder="Add a custom instruction..."></textarea>
-                     <button id="clear-custom-instruction" class="clear-btn" aria-label="Clear custom instruction">&times;</button>
-                </section>
-
                 <div class="generate-actions">
                     <button id="generate-btn" class="btn btn-primary">Generate</button>
-                    <button id="copy-cancel-btn" class="icon-btn">
-                        <!-- Icon will be set by JS -->
-                    </button>
-                    <div class="action-separator"></div>
-                    <div class="timer-container" aria-label="Response time">
-                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-                        <span id="stopwatch-display" aria-live="polite">0.0s</span>
-                    </div>
-                    <div class="secondary-actions">
-                        <button id="variations-btn" class="icon-btn" aria-label="Get Variations">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M20.5 15.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm-5 0c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zM3.5 15.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zM20.5 5.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zM3.5 5.5c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5z"/></svg>
-                        </button>
-                    </div>
+                    <button id="copy-cancel-btn" class="icon-btn"></button>
                 </div>
-
                 <nav class="tabs-nav">
                     <button id="tab-tune" role="tab" aria-controls="tune-panel" aria-selected="true" class="tab-btn active">Tune</button>
                     <button id="tab-analysis" role="tab" aria-controls="analysis-panel" class="tab-btn">Analysis</button>
-                    <button id="tab-geo" role="tab" aria-controls="geo-panel" class="tab-btn">Geo</button>
-                    <button id="tab-context" role="tab" aria-controls="context-panel" class="tab-btn">Context</button>
                 </nav>
-
                 <div class="tabs-content">
-                    <!-- TUNE PANEL -->
                     <div id="tune-panel" role="tabpanel" aria-labelledby="tab-tune" class="tab-panel active">
-                        <div class="form-group">
-                            <label for="current-goal">Current Goal</label>
-                            <select id="current-goal" name="current-goal">
-                                <option>PLAN_DATE</option>
-                                <option>Build Rapport</option>
-                                <option>Get Phone Number</option>
-                                <option>Re-engage</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="focus-topic">Focus Topic</label>
-                            <select id="focus-topic" name="focus-topic">
-                                <option>sexual</option>
-                                <option>travel</option>
-                                <option>food</option>
-                                <option>career</option>
-                            </select>
+                        <div class="form-group form-group--inline">
+                            <label for="current-goal">Goal</label>
+                            <select id="current-goal" name="current-goal"></select>
                         </div>
                         <div class="form-group slider-group">
-                            <label for="flirt-level" class="tooltip">Flirt Level: <span class="slider-value">0</span><i class="info-icon">i</i><span class="tooltip-text">Controls the intensity of romantic and playful language.</span></label>
+                            <label for="flirt-level" class="tooltip">Flirt Level <i class="info-icon">i</i><span class="tooltip-text">Controls the intensity of romantic and playful language.</span></label>
                             <input type="range" id="flirt-level" name="flirt-level" min="0" max="100" value="0">
+                            <span class="slider-value">0</span>
                         </div>
-                        <div class="form-group slider-group">
-                            <label for="length" class="tooltip">Length: <span class="slider-value">0</span><i class="info-icon">i</i><span class="tooltip-text">Sets the target length of the generated response.</span></label>
-                            <input type="range" id="length" name="length" min="0" max="100" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="linguistic-style">Linguistic Style</label>
-                            <select id="linguistic-style" name="linguistic-style">
-                                <option>casual</option>
-                                <option>witty</option>
-                                <option>formal</option>
-                                <option>playful</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="emoji-strategy">Emoji Strategy</label>
-                            <select id="emoji-strategy" name="emoji-strategy">
-                                <option>auto</option>
-                                <option>none</option>
-                                <option>minimal</option>
-                                <option>expressive</option>
-                            </select>
-                        </div>
-                        <div class="form-group form-group-toggle">
-                            <label for="escalate-flirtation">Escalate Flirtation</label>
-                            <label class="switch">
-                                <input type="checkbox" id="escalate-flirtation" name="escalate-flirtation">
-                                <span class="slider-toggle round"></span>
-                            </label>
-                        </div>
-                        <details class="advanced-settings">
-                            <summary>Advanced Settings</summary>
-                            <div class="advanced-settings-content">
-                                <div class="form-group slider-group">
-                                    <label for="creativity">Creativity (Temp): <span class="slider-value">0.7</span></label>
-                                    <input type="range" id="creativity" name="creativity" min="0" max="1" step="0.1" value="0.7">
-                                </div>
-                                <div class="form-group slider-group">
-                                    <label for="focus">Focus (Top-p): <span class="slider-value">0.9</span></label>
-                                    <input type="range" id="focus" name="focus" min="0" max="1" step="0.1" value="0.9">
-                                </div>
-                            </div>
-                        </details>
                     </div>
-
-                    <!-- ANALYSIS PANEL -->
                     <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-analysis" class="tab-panel">
-                        <div class="analysis-group">
-                            <label>Date Arc Phase</label>
-                            <p id="analysis-date-arc">--</p>
-                        </div>
-                        <div class="analysis-group">
-                            <label>Sexual Tension</label>
-                            <div class="progress-bar"><div id="analysis-tension-bar" class="progress-bar-fill" style="width: 0%;"></div></div>
-                        </div>
-                        <div class="analysis-group">
+                        <div class="data-row">
                             <label>Overall Sentiment</label>
                             <p id="analysis-sentiment">--</p>
                         </div>
-                        <div class="analysis-group">
+                        <div class="data-row">
                             <label>Conversation Stage</label>
                             <p id="analysis-stage">--</p>
-                        </div>
-                        <div class="analysis-group">
-                            <label>Reciprocity</label>
-                            <p id="analysis-reciprocity">--</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="analysis-next-topic">Suggested Next Topic</label>
-                            <div class="input-with-icon">
-                                <input type="text" id="analysis-next-topic" name="analysis-next-topic" readonly>
-                                <i class="info-icon edit-icon">...</i>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="analysis-escalate-topic">Escalate Topic</label>
-                             <div class="input-with-icon">
-                                <input type="text" id="analysis-escalate-topic" name="analysis-escalate-topic" readonly>
-                                <i class="info-icon edit-icon">...</i>
-                            </div>
-                        </div>
-                         <div class="form-group">
-                            <label for="analysis-avoid-topic">Avoid Topic</label>
-                             <div class="input-with-icon">
-                                <input type="text" id="analysis-avoid-topic" name="analysis-avoid-topic" readonly>
-                                <i class="info-icon edit-icon">...</i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- GEO PANEL -->
-                    <div id="geo-panel" role="tabpanel" aria-labelledby="tab-geo" class="tab-panel">
-                        <div class="analysis-group">
-                            <label>Virtual Conversation</label>
-                            <p id="geo-virtual">--</p>
-                        </div>
-                        <table class="geo-table">
-                            <thead>
-                                <tr><th></th><th>You</th><th>Match</th></tr>
-                            </thead>
-                            <tbody>
-                                <tr><td><label>Location</label></td><td id="geo-user-location">--</td><td id="geo-match-location">--</td></tr>
-                                <tr><td><label>Time of Day</label></td><td id="geo-user-time">--</td><td id="geo-match-time">--</td></tr>
-                            </tbody>
-                        </table>
-                        <div class="analysis-group">
-                            <label>Distance (miles)</label>
-                            <p id="geo-distance">--</p>
-                        </div>
-                        <div class="analysis-group">
-                            <label>Time Difference (hrs)</label>
-                            <p id="geo-time-diff">--</p>
-                        </div>
-                    </div>
-
-                    <!-- CONTEXT PANEL -->
-                    <div id="context-panel" role="tabpanel" aria-labelledby="tab-context" class="tab-panel">
-                        <details open>
-                            <summary>Recent Topics</summary>
-                            <ul id="history-log">
-                                <li>No topics yet.</li>
-                            </ul>
-                        </details>
-                        <div class="debug-toggle">
-                            <label for="debug-toggle">Debug Mode</label>
-                            <label class="switch">
-                                <input type="checkbox" id="debug-toggle">
-                                <span class="slider-toggle round"></span>
-                            </label>
-                        </div>
-                        <div id="debug-output" class="debug-output">
-                            <pre><code></code></pre>
                         </div>
                     </div>
                 </div>
             </main>
         </div>
-
-        <!-- Toast/Snackbar Notification -->
-        <div id="toast" class="toast">
-            <span id="toast-message"></span>
-        </div>
+        <div id="toast" class="toast"></div>
     </div>
     <script src="popup.js"></script>
 </body>
