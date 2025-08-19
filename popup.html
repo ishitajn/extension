@@ -119,14 +119,14 @@
 
             <main class="app-content">
                 <section class="card response-card">
-                    <div id="response-area" aria-label="Generated Response" aria-live="polite" role="log" aria-readonly="true"></div>
+                    <div id="response-area" aria-label="Generated Response" aria-live="polite" role="log" aria-readonly="true" placeholder="AI-generated response will appear here..."></div>
                     <div id="response-loader" class="loader-dots">···</div>
                     <div id="response-error" class="inline-error"></div>
 
                     <div id="refinement-actions" class="refinement-actions">
-                        <button class="btn btn-sm">Make it Funnier</button>
-                        <button class="btn btn-sm">Be More Direct</button>
-                        <button class="btn btn-sm">Make it Shorter</button>
+                        <button class="btn btn-sm" data-refine="funnier">Make it Funnier</button>
+                        <button class="btn btn-sm" data-refine="direct">Be More Direct</button>
+                        <button class="btn btn-sm" data-refine="shorter">Make it Shorter</button>
                     </div>
                 </section>
 
@@ -165,19 +165,23 @@
                         <div class="form-group">
                             <label for="current-goal">Current Goal</label>
                             <select id="current-goal" name="current-goal">
-                                <option>PLAN_DATE</option>
-                                <option>Build Rapport</option>
-                                <option>Get Phone Number</option>
-                                <option>Re-engage</option>
+                                <option value="BUILD_RAPPORT">Build Rapport</option>
+                                <option value="GET_PHONE_NUMBER">Get Phone Number</option>
+                                <option value="PLAN_DATE">Plan a Date</option>
+                                <option value="RE_ENGAGE">Re-engage Cold Chat</option>
+                                <option value="BANTER">Witty Banter</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="focus-topic">Focus Topic</label>
                             <select id="focus-topic" name="focus-topic">
-                                <option>sexual</option>
-                                <option>travel</option>
-                                <option>food</option>
-                                <option>career</option>
+                                <option value="auto">Auto-detect</option>
+                                <option value="profile">Their Profile</option>
+                                <option value="travel">Travel</option>
+                                <option value="food">Food & Drink</option>
+                                <option value="career">Career & Ambition</option>
+                                <option value="hobbies">Hobbies & Interests</option>
+                                <option value="sexual">Sexual Tension</option>
                             </select>
                         </div>
                         <div class="form-group slider-group">
@@ -232,7 +236,7 @@
                     <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-analysis" class="tab-panel">
                         <div class="analysis-group">
                             <label>Date Arc Phase</label>
-                            <p id="analysis-date-arc">--</p>
+                            <p id="analysis-date-arc"></p>
                         </div>
                         <div class="analysis-group">
                             <label>Sexual Tension</label>
@@ -240,34 +244,34 @@
                         </div>
                         <div class="analysis-group">
                             <label>Overall Sentiment</label>
-                            <p id="analysis-sentiment">--</p>
+                            <p id="analysis-sentiment"></p>
                         </div>
                         <div class="analysis-group">
                             <label>Conversation Stage</label>
-                            <p id="analysis-stage">--</p>
+                            <p id="analysis-stage"></p>
                         </div>
                         <div class="analysis-group">
                             <label>Reciprocity</label>
-                            <p id="analysis-reciprocity">--</p>
+                            <p id="analysis-reciprocity"></p>
                         </div>
                         <div class="form-group">
                             <label for="analysis-next-topic">Suggested Next Topic</label>
                             <div class="input-with-icon">
-                                <input type="text" id="analysis-next-topic" name="analysis-next-topic" readonly>
+                                <input type="text" id="analysis-next-topic" name="analysis-next-topic" readonly placeholder="NLP suggestion...">
                                 <i class="info-icon edit-icon">...</i>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="analysis-escalate-topic">Escalate Topic</label>
                              <div class="input-with-icon">
-                                <input type="text" id="analysis-escalate-topic" name="analysis-escalate-topic" readonly>
+                                <input type="text" id="analysis-escalate-topic" name="analysis-escalate-topic" readonly placeholder="NLP suggestion...">
                                 <i class="info-icon edit-icon">...</i>
                             </div>
                         </div>
                          <div class="form-group">
                             <label for="analysis-avoid-topic">Avoid Topic</label>
                              <div class="input-with-icon">
-                                <input type="text" id="analysis-avoid-topic" name="analysis-avoid-topic" readonly>
+                                <input type="text" id="analysis-avoid-topic" name="analysis-avoid-topic" readonly placeholder="NLP suggestion...">
                                 <i class="info-icon edit-icon">...</i>
                             </div>
                         </div>
@@ -277,34 +281,32 @@
                     <div id="geo-panel" role="tabpanel" aria-labelledby="tab-geo" class="tab-panel">
                         <div class="analysis-group">
                             <label>Virtual Conversation</label>
-                            <p id="geo-virtual">--</p>
+                            <p id="geo-virtual"></p>
                         </div>
                         <table class="geo-table">
                             <thead>
                                 <tr><th></th><th>You</th><th>Match</th></tr>
                             </thead>
                             <tbody>
-                                <tr><td><label>Location</label></td><td id="geo-user-location">--</td><td id="geo-match-location">--</td></tr>
-                                <tr><td><label>Time of Day</label></td><td id="geo-user-time">--</td><td id="geo-match-time">--</td></tr>
+                                <tr><td><label>Location</label></td><td id="geo-user-location"></td><td id="geo-match-location"></td></tr>
+                                <tr><td><label>Time of Day</label></td><td id="geo-user-time"></td><td id="geo-match-time"></td></tr>
                             </tbody>
                         </table>
                         <div class="analysis-group">
                             <label>Distance (miles)</label>
-                            <p id="geo-distance">--</p>
+                            <p id="geo-distance"></p>
                         </div>
                         <div class="analysis-group">
                             <label>Time Difference (hrs)</label>
-                            <p id="geo-time-diff">--</p>
+                            <p id="geo-time-diff"></p>
                         </div>
                     </div>
 
                     <!-- CONTEXT PANEL -->
                     <div id="context-panel" role="tabpanel" aria-labelledby="tab-context" class="tab-panel">
                         <details open>
-                            <summary>Recent Topics</summary>
-                            <ul id="history-log">
-                                <li>No topics yet.</li>
-                            </ul>
+                            <summary>Conversation History</summary>
+                            <ul id="history-log"></ul>
                         </details>
                         <div class="debug-toggle">
                             <label for="debug-toggle">Debug Mode</label>

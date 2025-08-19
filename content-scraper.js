@@ -18,7 +18,6 @@
 window.scrapeTinderPage = function() {
     console.log('[Tinder Scraper] Starting scrapeTinderPage function.');
     try {
-        // ... (The entire inner logic of scrapeTinderPage remains exactly the same) ...
         /**
          * Parses a single section within the main profile container. It identifies the
          * section type by its H2 title and applies specific logic for each.
@@ -247,7 +246,6 @@ window.pasteTextIntoTinderInput = function(textToPaste) {
 window.scrapeBumblePage = function() {
     console.log('[Bumble Scraper] Starting scrapeBumblePage function.');
     try {
-        // ... (The entire inner logic of scrapeBumblePage remains exactly the same) ...
         function parsePill(pillElement) {
             const value = pillElement.querySelector('.pill__title')?.textContent.trim() || '';
             const img = pillElement.querySelector('img');

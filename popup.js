@@ -122,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleGenerate() {
         if (isGenerating) return;
+
         isGenerating = true;
         setCopyCancelButtonState('generating');
         stopwatchStartTime = Date.now();
@@ -133,19 +134,49 @@ document.addEventListener('DOMContentLoaded', () => {
         refinementActions.style.display = 'none';
 
         try {
+            const settings = getSettingsFromDOM().config;
+            if (!settings.aiEndpoint || !settings.openaiKey) {
+                throw new Error("AI Endpoint or API Key is not configured in settings.");
+            }
+
             const apiPayload = await constructApiPayload();
-            console.log("--- Wingman AI: API Payload for LLM ---", JSON.stringify(apiPayload, null, 2));
-            const dummyResponse = await new Promise(resolve => setTimeout(() => resolve("This is a final, production-ready, AI-generated response."), 1500));
-            responseArea.textContent = dummyResponse;
-            handleCopy(dummyResponse);
+
+            // For now, we are sending the entire payload to a single endpoint.
+            // This assumes the endpoint is a custom server that can process this payload.
+            // A more advanced implementation would first call the NLP service,
+            // then use that result to construct a more specific payload for the LLM.
+
+            const response = await fetch(settings.aiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.openaiKey}`
+                },
+                body: JSON.stringify(apiPayload)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+            }
+
+            const result = await response.json();
+            const generatedText = result.response || "No response text found.";
+
+            responseArea.textContent = generatedText;
+            // Optionally, auto-copy the response
+            // handleCopy(generatedText);
+
         } catch (error) {
             responseError.textContent = `Error: ${error.message}`;
         } finally {
             isGenerating = false;
             setCopyCancelButtonState('copy');
             clearInterval(stopwatchInterval);
-            const finalTime = ((Date.now() - stopwatchStartTime) / 1000).toFixed(1);
-            stopwatchDisplay.textContent = `${finalTime}s`;
+            if (stopwatchStartTime) {
+                 const finalTime = ((Date.now() - stopwatchStartTime) / 1000).toFixed(1);
+                 stopwatchDisplay.textContent = `${finalTime}s`;
+            }
             buttons.generateBtn.disabled = false;
             responseLoader.style.display = 'none';
             refinementActions.style.display = 'flex';
@@ -176,54 +207,113 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    async function fetchNlpAnalysis() {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return {"sentiment":{"overall":"positive"},"topics":{"liked":["travel","food"],"disliked":[],"neutral":[],"sensitive":["flirt"],"map":{"travel":["travel","adventure"],"food":["foodie","italian"],"flirt":["cute","gorgeous smile"]}},"suggested_topics":{"next_topic":"career goals","avoid_topic":"flirt","escalate_topic":"sexual chemistry"},"conversation_dynamics":{"pace":"fast","stage":"active","reciprocity_balance":"balanced","flirtation_level":"medium"},"geoContext":{"userLocation":{"city":"New York","timeOfDay":"Morning"},"matchLocation":{"city":"San Francisco","timeOfDay":"Morning"},"distance_miles":2565.59,"timeZoneDifference":3,"isVirtual":true},"recommended_actions":{"focus_topic":"sexual","escalate_flirtation":true,"length":60,"tone":75,"linguisticStyle":"casual","emojiStrategy":"auto","suggestedNextAction":"PLAN_DATE","dateArcPhase":"escalation"},"conversation_brain":{"predictive_actions":{"creativity":0.7,"focus":0.9},"memory_layer":{"recent_topics":["travel","food","flirt"]}}};
+    function fetchScrapedData() {
+        return new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ action: 'scrapePage' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    // Handle errors related to the extension system itself
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else if (response && response.error) {
+                    // Handle errors sent back from our background or content script
+                    reject(new Error(response.error));
+                } else {
+                    resolve(response);
+                }
+            });
+        });
     }
 
-    function populateUiWithNlpData(data) {
-        const rec = data.recommended_actions;
-        const dyn = data.conversation_dynamics;
 
-        document.getElementById('current-goal').innerHTML = `<option selected>${rec.suggestedNextAction}</option>`;
-        document.getElementById('focus-topic').innerHTML = `<option selected>${rec.focus_topic}</option>`;
-        document.getElementById('flirt-level').value = rec.tone;
-        document.getElementById('length').value = rec.length;
-        document.getElementById('linguistic-style').innerHTML = `<option selected>${rec.linguisticStyle}</option>`;
-        document.getElementById('emoji-strategy').innerHTML = `<option selected>${rec.emojiStrategy}</option>`;
-        document.getElementById('escalate-flirtation').checked = rec.escalate_flirtation;
-        document.getElementById('creativity').value = data.conversation_brain.predictive_actions.creativity;
-        document.getElementById('focus').value = data.conversation_brain.predictive_actions.focus;
+    function populateUiWithNlpData(scrapedData, nlpAnalysis = null) {
+        console.log("Populating UI with Scraped Data:", scrapedData);
+        console.log("Populating UI with NLP Analysis:", nlpAnalysis);
 
-        document.getElementById('analysis-date-arc').textContent = rec.dateArcPhase;
+        // --- Helper to safely set values ---
+        const setField = (id, value, property = 'textContent') => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (property === 'value' || property === 'checked') {
+                    el[property] = value;
+                } else if (property === 'style.width') {
+                    el.style.width = value;
+                }
+                else {
+                    el.textContent = value || '';
+                }
+            }
+        };
+
+        // --- Populate fields from NLP data if available, otherwise use defaults ---
+        const rec = nlpAnalysis?.recommended_actions;
+        const dyn = nlpAnalysis?.conversation_dynamics;
+        const sentiment = nlpAnalysis?.sentiment;
+        const suggested = nlpAnalysis?.suggested_topics;
+        const brain = nlpAnalysis?.conversation_brain;
+
+        // Tune Panel
+        setField('current-goal', rec?.suggestedNextAction || 'BUILD_RAPPORT', 'value');
+        setField('focus-topic', rec?.focus_topic || 'auto', 'value');
+        setField('flirt-level', rec?.tone || 30, 'value');
+        setField('length', rec?.length || 50, 'value');
+        setField('linguistic-style', rec?.linguisticStyle || 'casual', 'value');
+        setField('emoji-strategy', rec?.emojiStrategy || 'auto', 'value');
+        setField('escalate-flirtation', rec?.escalate_flirtation || false, 'checked');
+        setField('creativity', brain?.predictive_actions?.creativity || 0.7, 'value');
+        setField('focus', brain?.predictive_actions?.focus || 0.9, 'value');
+
+        // Analysis Panel
+        setField('analysis-date-arc', rec?.dateArcPhase || 'N/A');
         const tensionMap = { low: 25, medium: 50, high: 75 };
-        document.getElementById('analysis-tension-bar').style.width = `${tensionMap[dyn.flirtation_level] || 0}%`;
-        document.getElementById('analysis-sentiment').textContent = data.sentiment.overall;
-        document.getElementById('analysis-stage').textContent = dyn.stage;
-        document.getElementById('analysis-reciprocity').textContent = dyn.reciprocity_balance;
-        document.getElementById('analysis-next-topic').value = data.suggested_topics.next_topic;
-        document.getElementById('analysis-escalate-topic').value = data.suggested_topics.escalate_topic;
-        document.getElementById('analysis-avoid-topic').value = data.suggested_topics.avoid_topic;
+        setField('analysis-tension-bar', `${tensionMap[dyn?.flirtation_level] || 0}%`, 'style.width');
+        setField('analysis-sentiment', sentiment?.overall || 'N/A');
+        setField('analysis-stage', dyn?.stage || 'N/A');
+        setField('analysis-reciprocity', dyn?.reciprocity_balance || 'N/A');
+        setField('analysis-next-topic', suggested?.next_topic || '', 'value');
+        setField('analysis-escalate-topic', suggested?.escalate_topic || '', 'value');
+        setField('analysis-avoid-topic', suggested?.avoid_topic || '', 'value');
 
-        const geo = data.geoContext;
-        document.getElementById('geo-virtual').textContent = geo.isVirtual ? 'Yes' : 'No';
-        document.getElementById('geo-user-location').textContent = geo.userLocation.city;
-        document.getElementById('geo-match-location').textContent = geo.matchLocation.city;
-        document.getElementById('geo-user-time').textContent = geo.userLocation.timeOfDay;
-        document.getElementById('geo-match-time').textContent = geo.matchLocation.timeOfDay;
-        document.getElementById('geo-distance').textContent = Math.round(geo.distance_miles);
-        document.getElementById('geo-time-diff').textContent = geo.timeZoneDifference;
+        // --- Populate fields directly from scraped data ---
+        const geo = scrapedData?.geoContext || {}; // Use geoContext if present, otherwise empty object
 
-        const topics = data.conversation_brain.memory_layer.recent_topics;
-        historyLog.innerHTML = topics.map(t => `<li>${t}</li>`).join('');
+        // Geo Panel (using scraped data)
+        setField('geo-virtual', geo.isVirtual ? 'Yes' : 'No');
+        setField('geo-user-location', geo.userLocation?.city || 'N/A');
+        setField('geo-match-location', scrapedData?.matchLocation || 'N/A');
+        setField('geo-user-time', geo.userLocation?.timeOfDay || 'N/A');
+        setField('geo-match-time', geo.matchLocation?.timeOfDay || 'N/A');
+        setField('geo-distance', Math.round(geo.distance_miles || scrapedData?.matchDistance || 0));
+        setField('geo-time-diff', geo.timeZoneDifference || 'N/A');
 
+        // Context Panel (using scraped data)
+        if (scrapedData?.conversationHistory && scrapedData.conversationHistory.length > 0) {
+            historyLog.innerHTML = scrapedData.conversationHistory
+                .map(msg => `<li><span class="history-role">${msg.role === 'user' ? 'You' : scrapedData.theirName}:</span> <span class="history-content">${msg.content}</span></li>`)
+                .join('');
+        } else {
+            historyLog.innerHTML = '<li>No conversation history found.</li>';
+        }
+
+        // Update all slider value displays
         sliders.forEach(updateSliderValue);
+
+        // Show the raw scraped data in the debug output
+        const debugPre = debugOutput.querySelector('pre code');
+        if (debugPre) {
+            debugPre.textContent = JSON.stringify({scrapedData, nlpAnalysis}, null, 2);
+        }
     }
 
     async function loadAndPopulateUI() {
         try {
-            nlpData = await fetchNlpAnalysis();
-            populateUiWithNlpData(nlpData);
+            const scrapedData = await fetchScrapedData();
+
+            // Store the scraped data in the global `nlpData` variable.
+            // In the future, this variable will hold the combined result of scraping and NLP analysis.
+            nlpData = scrapedData;
+
+            // Populate the UI. We pass the scraped data, and null for the NLP analysis part for now.
+            populateUiWithNlpData(scrapedData, null);
+
             showView('main');
         } catch (error) {
             document.querySelector('#error-view .error-message').textContent = error.message;
@@ -298,9 +388,13 @@ document.addEventListener('DOMContentLoaded', () => {
             focus: document.getElementById('focus').value,
         };
 
+        // nlpData now holds the raw scraped data.
+        // We will construct the payload using this.
         return {
-            matchId: nlpData?.matchId || "placeholder_match_id",
-            scraped_data: nlpData?.scraped_data || {},
+            // A unique ID for the match will need to be generated or retrieved,
+            // for now, we can combine names as a placeholder.
+            matchId: `${nlpData?.myName}-${nlpData?.theirName}`,
+            scraped_data: nlpData, // Pass the entire scraped data object.
             ui_settings: {
                 useEnhancedNlp: settings.config.advancedNlp,
                 myLocation: myLocation,
@@ -311,16 +405,54 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function handleTestConnection(button) {
+    async function handleTestConnection(button) {
         const statusSpan = button.querySelector('.connection-status');
         if (!statusSpan) return;
+
         statusSpan.textContent = '...';
-        setTimeout(() => {
-            const isSuccess = Math.random() < 0.75;
+        statusSpan.style.color = 'var(--secondary-text)';
+
+        const settings = getSettingsFromDOM().config;
+        let isSuccess = false;
+        let testUrl = '';
+        let options = {};
+
+        try {
+            if (button.id === 'test-nlp-btn') {
+                testUrl = settings.nlpUrl;
+                if (!testUrl) throw new Error("NLP Service URL is not set.");
+                // Simple GET request to the base URL
+                options = { method: 'GET' };
+            } else if (button.id === 'test-llm-btn') {
+                testUrl = settings.aiEndpoint;
+                if (!testUrl) throw new Error("AI Endpoint is not set.");
+                if (!settings.openaiKey) throw new Error("API Key is not set.");
+                // A common way to test an OpenAI-compatible endpoint is to list models.
+                // We'll assume the endpoint is compatible.
+                if (!testUrl.endsWith('/')) testUrl += '/';
+                testUrl += 'models';
+                options = {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${settings.openaiKey}` }
+                };
+            }
+
+            const response = await fetch(testUrl, options);
+            if (response.ok) {
+                isSuccess = true;
+            } else {
+                 console.error(`Connection test failed for ${button.id} with status ${response.status}`);
+            }
+        } catch (error) {
+            console.error(`Connection test failed for ${button.id}:`, error);
+            isSuccess = false;
+        } finally {
             statusSpan.textContent = isSuccess ? '✓' : '✗';
             statusSpan.style.color = isSuccess ? 'var(--success-color)' : 'var(--danger-color)';
-            setTimeout(() => statusSpan.textContent = '', 2000);
-        }, 1000);
+            setTimeout(() => {
+                statusSpan.textContent = '';
+            }, 3000);
+        }
     }
 
     function handleImport() {
