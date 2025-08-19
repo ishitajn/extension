@@ -76,6 +76,7 @@ body {
     flex-grow: 1;
     overflow-y: auto;
     padding: 16px;
+    min-height: 0; /* Flexbox fix for scrollable content */
 }
 
 /* --- Header --- */
@@ -351,6 +352,7 @@ input[type="range"]:hover::-moz-range-thumb { background: var(--accent); }
     flex-grow: 1;
     overflow-y: auto;
     padding: 12px;
+    min-height: 0; /* Flexbox fix for scrollable content */
 }
 
 .card {
