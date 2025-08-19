@@ -53,21 +53,23 @@ body {
 .icon.danger { fill: var(--danger-color); }
 
 /* --- Forms & Inputs (Stacked Layout by Default) --- */
-.form-group { margin-bottom: 12px; }
+.form-group { margin-bottom: 16px; }
 .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--secondary-text); }
 input, textarea, select { background-color: var(--header-input-bg); color: var(--primary-text); border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; width: 100%; font-family: var(--font-family); }
 textarea { resize: vertical; }
 fieldset { border: none; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); }
 fieldset:last-of-type { border-bottom: none; }
 legend { font-weight: bold; color: var(--secondary-text); margin-bottom: 12px; padding: 0; font-size: 12px; text-transform: uppercase; }
+.sub-fieldset { border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-top: 8px; }
+.sub-legend { font-size: 13px; font-weight: bold; color: var(--secondary-text); margin-bottom: 8px; }
 
-/* --- Inline Modifier for Form Groups --- */
+/* --- Inline Modifier for Specific Form Groups --- */
 .form-group--inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .form-group--inline > label { margin-bottom: 0; flex-shrink: 0; }
 .form-group--inline > input, .form-group--inline > select { flex-grow: 1; min-width: 0; }
 
 /* --- Data Rows (for Read-Only Data) --- */
-.data-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; padding: 4px 0; border-bottom: 1px solid var(--header-input-bg); }
+.data-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 0; border-bottom: 1px solid var(--header-input-bg); }
 .data-row:last-child { border-bottom: none; }
 .data-row label { font-size: 13px; color: var(--secondary-text); }
 .data-row p { font-weight: bold; color: var(--primary-text); }
@@ -76,7 +78,7 @@ legend { font-weight: bold; color: var(--secondary-text); margin-bottom: 12px; p
 .response-card { position: relative; }
 #response-area { min-height: 80px; width: 100%; color: var(--primary-text); font-size: 14px; }
 #response-loader { display: none; position: absolute; bottom: 8px; right: 12px; }
-.inline-error { color: var(--danger-color); font-size: 12px; }
+.inline-error { color: var(--danger-color); font-size: 12px; padding: 8px; }
 .generate-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .generate-actions .btn-primary { flex-grow: 1; }
 
@@ -91,6 +93,12 @@ legend { font-weight: bold; color: var(--secondary-text); margin-bottom: 12px; p
 #toast { visibility: hidden; min-width: 250px; background-color: var(--card-bg); color: #fff; text-align: center; border-radius: 6px; padding: 16px; position: fixed; z-index: 10; left: 50%; bottom: 30px; transform: translateX(-50%); opacity: 0; transition: all 0.5s; }
 #toast.show { visibility: visible; opacity: 1; }
 
+/* --- Sliders --- */
+.slider-group { display: flex; align-items: center; gap: 12px; }
+.slider-group label { flex-grow: 1; }
+.slider-group .slider-value { font-weight: bold; color: var(--accent); padding: 0 8px; }
+.slider-group input[type="range"] { width: 100px; flex-grow: 0; }
+
 /* --- Animations & Highlights --- */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -102,3 +110,13 @@ legend { font-weight: bold; color: var(--secondary-text); margin-bottom: 12px; p
 .tooltip .info-icon { margin-left: 6px; font-style: normal; font-weight: bold; color: var(--secondary-text); border: 1px solid var(--secondary-text); border-radius: 50%; width: 16px; height: 16px; display: inline-flex; justify-content: center; align-items: center; font-size: 10px; cursor: help; user-select: none; }
 .tooltip .tooltip-text { visibility: hidden; width: 220px; background-color: var(--card-bg); color: var(--primary-text); text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 10; bottom: 150%; left: 50%; margin-left: -110px; opacity: 0; transition: opacity 0.3s; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 12px; font-weight: normal; }
 .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+/* --- Toggle Switch --- */
+.form-group-toggle { display: flex; align-items: center; justify-content: space-between; }
+.form-group-toggle label:first-child { flex-grow: 1; }
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider-toggle { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--header-input-bg); transition: var(--transition-fast); border-radius: 24px; border: 1px solid var(--border-color); }
+.slider-toggle:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: var(--secondary-text); transition: var(--transition-fast); border-radius: 50%; }
+input:checked + .slider-toggle { background-color: var(--accent); border-color: var(--accent); }
+input:checked + .slider-toggle:before { transform: translateX(20px); background-color: var(--primary-bg); }
